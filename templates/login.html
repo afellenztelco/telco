@@ -8,11 +8,7 @@
 <body class="bg-light d-flex align-items-center justify-content-center vh-100">
     <div class="card shadow p-4" style="width: 350px;">
         <h5 class="text-primary text-center mb-4 font-weight-bold">GESTION DE ENLACES DE TELCOMUNICACIONES</h5>
-        
-        <div id="errorAlert" class="alert alert-danger d-none text-center py-2 mb-3" style="font-size: 0.8rem;">
-            Usuario o contraseña incorrectos
-        </div>
-
+        <div id="errorAlert" class="alert alert-danger d-none text-center py-2 mb-3" style="font-size: 0.8rem;">Usuario o contraseña incorrectos</div>
         <form action="/login" method="POST">
             <div class="mb-3 text-start">
                 <label for="username" class="form-label mb-1" style="font-size: 0.8rem;">Usuario</label>
@@ -25,13 +21,9 @@
             <button type="submit" class="btn btn-primary w-100 btn-sm">INGRESAR</button>
         </form>
     </div>
-
     <script>
-        // Muestra dinámicamente el mensaje si la URL trae la marca de error
         const parametros = new URLSearchParams(window.location.search);
-        if (parametros.has('error')) {
-            document.getElementById('errorAlert').classList.remove('d-none');
-        }
+        if (parametros.has('error')) { document.getElementById('errorAlert').classList.remove('d-none'); }
     </script>
 </body>
 </html>
