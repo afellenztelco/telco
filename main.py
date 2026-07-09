@@ -150,6 +150,25 @@ def crear_enlace(enlace: EnlaceCreate, db: Session = Depends(get_db), user: str 
 def listar_enlaces(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
     return db.query(Enlace).all()
 
+@app.get("/enlaces/{enlace_id}")
+def obtener_enlace(enlace_id: int, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
+    if not enlace:
+        raise HTTPException(status_code=404, detail="Enlace no encontrado")
+    return enlace
+
+@app.put("/enlaces/{enlace_id}")
+def actualizar_enlace(enlace_id: int, enlace_data: EnlaceCreate, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
+    if not enlace:
+        raise HTTPException(status_code=404, detail="Enlace no encontrado")
+    
+    for key, value in enlace_data.model_dump().items():
+        setattr(enlace, key, value)
+        
+    db.commit()
+    return {"ok": True}
+
 @app.patch("/enlaces/{enlace_id}/estado")
 def cambiar_estado(enlace_id: int, estado: EstadoEnlace, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
     enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
@@ -205,10 +224,10 @@ def exportar_excel(db: Session = Depends(get_db), user: str = Depends(verificar_
             
     totales = [
         'TOTALES', '', '', '', '', '', 
-        df['precio_venta_sin_iva'].sum(), 
-        df['precio_venta_con_iva'].sum(), 
-        df['costo_instalacion'].sum(), 
-        df['costo_mantenimiento'].sum(), 
+        df['precio_venta_sin_iva'].sum() if not df.empty else 0, 
+        df['precio_venta_con_iva'].sum() if not df.empty else 0, 
+        df['costo_instalacion'].sum() if not df.empty else 0, 
+        df['costo_mantenimiento'].sum() if not df.empty else 0, 
         ''
     ]
     ws.append(totales)
@@ -237,7 +256,6 @@ def exportar_pdf(db: Session = Depends(get_db), user: str = Depends(verificar_us
     ]]
     
     for e in data:
-        # Extraemos las variables primero para evitar líneas muy largas
         ref = e['referencia']
         org = e['organismo']
         loc = e['localidad']
@@ -255,10 +273,10 @@ def exportar_pdf(db: Session = Depends(get_db), user: str = Depends(verificar_us
         
     totales_row = [
         'TOTALES', '', '', '', '', '', 
-        f"{df['precio_venta_sin_iva'].sum():.2f}", 
-        f"{df['precio_venta_con_iva'].sum():.2f}", 
-        f"{df['costo_instalacion'].sum():.2f}", 
-        f"{df['costo_mantenimiento'].sum():.2f}", 
+        f"{df['precio_venta_sin_iva'].sum():.2f}" if not df.empty else "0.00", 
+        f"{df['precio_venta_con_iva'].sum():.2f}" if not df.empty else "0.00", 
+        f"{df['costo_instalacion'].sum():.2f}" if not df.empty else "0.00", 
+        f"{df['costo_mantenimiento'].sum():.2f}" if not df.empty else "0.00", 
         ''
     ]
     table_data.append(totales_row)
