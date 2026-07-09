@@ -22,7 +22,7 @@
 <div class="container-fluid px-4">
     <div class="row">
         <div class="col-xl-3 col-lg-4">
-            <div class="card mb-4"><div class="card-header bg-primary text-white"><h6 class="mb-0 py-1">Alta de Nuevo Enlace</h6></div>
+            <div class="card mb-4"><div class="card-header bg-primary text-white"><h6 class="mb-0 py-1" id="tituloFormulario">Alta de Nuevo Enlace</h6></div>
                 <div class="card-body">
                     <form id="formAltaEnlace">
                         <div class="row mb-2"><div class="col-6"><label class="form-label mb-1">Referencia</label><input type="text" class="form-control form-control-sm" id="referencia" required></div><div class="col-6"><label class="form-label mb-1">Fecha Alta</label><input type="date" class="form-control form-control-sm" id="fecha_alta" required></div></div>
@@ -32,7 +32,7 @@
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1">Ancho Banda</label><input type="text" class="form-control form-control-sm" id="ancho_banda" required></div><div class="col-6"><label class="form-label mb-1">Proveedor</label><input type="text" class="form-control form-control-sm" id="proveedor" required></div></div>
                         <div class="row mb-2"><div class="col-4"><label class="form-label mb-1">Moneda</label><select class="form-select form-select-sm" id="moneda"><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div class="col-8"><label class="form-label mb-1">Instalación</label><input type="number" step="0.01" class="form-control form-control-sm" id="instalacion" value="0" required></div></div>
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1 text-danger">Costo Mensual</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo" required></div><div class="col-6"><label class="form-label mb-1 text-primary">MANTENIMIENTO (ARS)</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo_mantenimiento" value="0" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta SIN IVA</label><input type="number" step="0.01" class="form-control form-control-sm" id="venta_sin_iva" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta CON IVA</label><input type="number" step="0.01" class="form-control form-control-sm bg-light" id="venta_con_iva" readonly></div></div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Enlace</button>
+                        <button type="submit" class="btn btn-primary w-100" id="btnGuardar">Guardar Enlace</button>
                     </form>
                 </div>
             </div>
@@ -45,20 +45,95 @@
     </div>
 </div>
 <script>
+    let idEdicion = null;
+
     function cerrarSesion() { window.location.href = '/logout'; }
     document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
+    
     async function cargarEnlaces() {
         const r = await fetch('/enlaces/'); const d = await r.json();
         const tb = document.getElementById('tablaEnlaces');
-        tb.innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td>${e.ancho_banda}</td><td>${e.moneda}</td><td>${e.precio_venta_sin_iva}</td><td>${e.precio_venta_con_iva}</td><td>${e.costo_instalacion}</td><td>${e.costo_mantenimiento}</td><td><span class="badge ${e.estado=='ACTIVO'?'bg-success':'bg-danger'}">${e.estado}</span></td><td><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
+        tb.innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td>${e.ancho_banda}</td><td>${e.moneda}</td><td>${e.precio_venta_sin_iva}</td><td>${e.precio_venta_con_iva}</td><td>${e.costo_instalacion}</td><td>${e.costo_mantenimiento}</td><td><span class="badge ${e.estado=='ACTIVO'?'bg-success':'bg-danger'}">${e.estado}</span></td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="iniciarEdicion(${e.id})">Editar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
     }
+    
     async function st(id, s) { await fetch(`/enlaces/${id}/estado?estado=${s}`, {method:'PATCH'}); cargarEnlaces(); }
+    
+    async function iniciarEdicion(id) {
+        const r = await fetch(`/enlaces/${id}`);
+        const e = await r.json();
+        
+        document.getElementById('referencia').value = e.referencia;
+        document.getElementById('fecha_alta').value = e.fecha_alta;
+        document.getElementById('organismo').value = e.organismo;
+        document.getElementById('localidad').value = e.localidad;
+        document.getElementById('tipo').value = e.tipo_enlace;
+        document.getElementById('ancho_banda').value = e.ancho_banda;
+        document.getElementById('proveedor').value = e.proveedor;
+        document.getElementById('moneda').value = e.moneda;
+        document.getElementById('instalacion').value = e.costo_instalacion;
+        document.getElementById('costo').value = e.precio_costo;
+        document.getElementById('costo_mantenimiento').value = e.costo_mantenimiento;
+        document.getElementById('venta_sin_iva').value = e.precio_venta_sin_iva;
+        document.getElementById('venta_con_iva').value = e.precio_venta_con_iva;
+        
+        idEdicion = id;
+        document.getElementById('tituloFormulario').textContent = "Editar Enlace";
+        const btnSubmit = document.getElementById('btnGuardar');
+        btnSubmit.textContent = "Actualizar Enlace";
+        btnSubmit.classList.replace('btn-primary', 'btn-warning');
+        
+        if(!document.getElementById('btnCancelarEdicion')) {
+            const btnCancelar = document.createElement('button');
+            btnCancelar.id = 'btnCancelarEdicion';
+            btnCancelar.type = 'button';
+            btnCancelar.className = 'btn btn-secondary w-100 mt-2';
+            btnCancelar.textContent = 'Cancelar Edición';
+            btnCancelar.onclick = cancelarEdicion;
+            document.getElementById('formAltaEnlace').appendChild(btnCancelar);
+        }
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicion() {
+        idEdicion = null;
+        document.getElementById('formAltaEnlace').reset();
+        document.getElementById('tituloFormulario').textContent = "Alta de Nuevo Enlace";
+        const btnSubmit = document.getElementById('btnGuardar');
+        btnSubmit.textContent = "Guardar Enlace";
+        btnSubmit.classList.replace('btn-warning', 'btn-primary');
+        const btnCancelar = document.getElementById('btnCancelarEdicion');
+        if(btnCancelar) btnCancelar.remove();
+    }
+
     document.getElementById('formAltaEnlace').onsubmit = async (e) => {
         e.preventDefault();
-        const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value};
-        await fetch('/enlaces/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        document.getElementById('formAltaEnlace').reset(); cargarEnlaces();
+        const p = {
+            referencia: document.getElementById('referencia').value, 
+            organismo: document.getElementById('organismo').value, 
+            localidad: document.getElementById('localidad').value, 
+            tipo_enlace: document.getElementById('tipo').value, 
+            ancho_banda: document.getElementById('ancho_banda').value, 
+            moneda: document.getElementById('moneda').value, 
+            precio_costo: parseFloat(document.getElementById('costo').value), 
+            costo_mantenimiento: parseFloat(document.getElementById('costo_mantenimiento').value), 
+            precio_venta_sin_iva: parseFloat(document.getElementById('venta_sin_iva').value), 
+            precio_venta_con_iva: parseFloat(document.getElementById('venta_con_iva').value), 
+            costo_instalacion: parseFloat(document.getElementById('instalacion').value), 
+            fecha_alta: document.getElementById('fecha_alta').value, 
+            proveedor: document.getElementById('proveedor').value
+        };
+        
+        if (idEdicion) {
+            await fetch(`/enlaces/${idEdicion}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+            cancelarEdicion();
+        } else {
+            await fetch('/enlaces/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+            document.getElementById('formAltaEnlace').reset();
+        }
+        cargarEnlaces();
     };
+    
     cargarEnlaces();
 </script>
 </body>
