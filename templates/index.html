@@ -16,125 +16,111 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm py-2">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">ALTEC - Operaciones</a>
-        <div class="d-flex"><span class="navbar-text me-3">Sistema de Gestión de Enlaces</span><button onclick="cerrarSesion()" class="btn btn-sm btn-outline-danger">Cerrar Sesión</button></div>
+        <div class="d-flex align-items-center">
+            <span class="navbar-text me-3">Sistema de Gestión de Enlaces</span>
+            <button onclick="verEliminados()" class="btn btn-sm btn-outline-warning me-2">Eliminados</button>
+            <button onclick="verLogs()" class="btn btn-sm btn-outline-info me-2">Auditoría</button>
+            <button onclick="window.location.href='/logout'" class="btn btn-sm btn-outline-danger">Cerrar Sesión</button>
+        </div>
     </div>
 </nav>
 <div class="container-fluid px-4">
     <div class="row">
         <div class="col-xl-3 col-lg-4">
-            <div class="card mb-4"><div class="card-header bg-primary text-white"><h6 class="mb-0 py-1" id="tituloFormulario">Alta de Nuevo Enlace</h6></div>
+            <div class="card mb-4"><div class="card-header bg-primary text-white"><h6 id="formTitle" class="mb-0 py-1">Alta de Nuevo Enlace</h6></div>
                 <div class="card-body">
                     <form id="formAltaEnlace">
+                        <input type="hidden" id="edit_id">
                         <div class="row mb-2"><div class="col-6"><label class="form-label mb-1">Referencia</label><input type="text" class="form-control form-control-sm" id="referencia" required></div><div class="col-6"><label class="form-label mb-1">Fecha Alta</label><input type="date" class="form-control form-control-sm" id="fecha_alta" required></div></div>
                         <div class="mb-2"><label class="form-label mb-1">Organismo</label><input type="text" class="form-control form-control-sm" id="organismo" required></div>
                         <div class="mb-2"><label class="form-label mb-1">Localidad</label><input class="form-control form-control-sm" list="listaLoc" id="localidad" required><datalist id="listaLoc"><option value="Viedma"><option value="Aguada Guzmán"><option value="Ojos de Agua"><option value="Río Chico Abajo"></datalist></div>
-                        <div class="mb-3"><label class="form-label mb-1">Tipo de Enlace</label><select class="form-select form-select-sm" id="tipo" required><option value="Fibra Optica dedicado">Fibra Optica dedicado</option><option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option><option value="Radio Frecuencia">Radio Frecuencia</option><option value="LEO">LEO</option><option value="LEO Itinerante">LEO Itinerante</option><option value="GEO">GEO</option><option value="L2L (transporte de datos)">L2L (transporte de datos)</option></select></div>
+                        <div class="mb-3"><label class="form-label mb-1">Tipo de Enlace</label><select class="form-select form-select-sm" id="tipo" required onchange="toggleSatelitales()"><option value="Fibra Optica dedicado">Fibra Optica dedicado</option><option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option><option value="Radio Frecuencia">Radio Frecuencia</option><option value="LEO">LEO</option><option value="LEO Itinerante">LEO Itinerante</option><option value="GEO">GEO</option><option value="L2L (transporte de datos)">L2L (transporte de datos)</option></select></div>
+                        <div id="campos_satelitales" class="d-none bg-light p-2 border rounded mb-3">
+                            <h6 class="text-secondary mb-2" style="font-size: 0.75rem; font-weight: bold;">Datos Satelitales</h6>
+                            <input type="text" class="form-control form-control-sm mb-1" id="cupo_transferencia" placeholder="Cupo Transferencia">
+                            <input type="text" class="form-control form-control-sm mb-1" id="coordenadas_gps" placeholder="Coordenadas GPS">
+                            <input type="text" class="form-control form-control-sm mb-1" id="sn_antena" placeholder="S/N Antena">
+                            <input type="text" class="form-control form-control-sm mb-1" id="sn_modem" placeholder="S/N Modem">
+                            <input type="text" class="form-control form-control-sm mb-1" id="nro_te" placeholder="Nro de TE">
+                            <input type="text" class="form-control form-control-sm" id="nro_item" placeholder="Nro de ITEM">
+                        </div>
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1">Ancho Banda</label><input type="text" class="form-control form-control-sm" id="ancho_banda" required></div><div class="col-6"><label class="form-label mb-1">Proveedor</label><input type="text" class="form-control form-control-sm" id="proveedor" required></div></div>
                         <div class="row mb-2"><div class="col-4"><label class="form-label mb-1">Moneda</label><select class="form-select form-select-sm" id="moneda"><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div class="col-8"><label class="form-label mb-1">Instalación</label><input type="number" step="0.01" class="form-control form-control-sm" id="instalacion" value="0" required></div></div>
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1 text-danger">Costo Mensual</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo" required></div><div class="col-6"><label class="form-label mb-1 text-primary">MANTENIMIENTO (ARS)</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo_mantenimiento" value="0" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta SIN IVA</label><input type="number" step="0.01" class="form-control form-control-sm" id="venta_sin_iva" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta CON IVA</label><input type="number" step="0.01" class="form-control form-control-sm bg-light" id="venta_con_iva" readonly></div></div>
                         <button type="submit" class="btn btn-primary w-100" id="btnGuardar">Guardar Enlace</button>
+                        <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancelar" onclick="resetForm()">Cancelar</button>
                     </form>
                 </div>
             </div>
         </div>
         <div class="col-xl-9 col-lg-8">
             <div class="card"><div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><h6 class="mb-0">Padrón de Enlaces</h6><div><a href="/reportes/pdf" class="btn btn-sm btn-outline-light me-2" target="_blank">📄 PDF</a><a href="/reportes/excel" class="btn btn-sm btn-outline-success text-white">📊 Excel</a></div></div>
-                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>Ref</th><th>Organismo</th><th>Localidad</th><th>Tipo</th><th>Ancho</th><th>Moneda</th><th>Vta s/IVA</th><th>Vta c/IVA</th><th>Instal.</th><th>Mantenimiento (ARS)</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
+                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>Ref</th><th>Organismo</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
             </div>
         </div>
     </div>
 </div>
-<script>
-    let idEdicion = null;
 
-    function cerrarSesion() { window.location.href = '/logout'; }
-    document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
-    
+<div class="modal fade" id="modalConsulta" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-primary text-white"><h6 class="modal-title">Detalle Satelital</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p><b>Cupo:</b> <span id="val_cupo"></span></p><p><b>GPS:</b> <span id="val_gps"></span></p><p><b>S/N Antena:</b> <span id="val_antena"></span></p><p><b>S/N Modem:</b> <span id="val_modem"></span></p><p><b>Nro TE:</b> <span id="val_te"></span></p><p><b>Nro ITEM:</b> <span id="val_item"></span></p></div></div></div></div>
+<div class="modal fade" id="modalLogs" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-info text-white"><h6 class="modal-title">Auditoría</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><table class="table table-sm table-striped"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody id="tablaLogs"></tbody></table></div></div></div></div>
+<div class="modal fade" id="modalEliminados" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header bg-warning py-2"><h6 class="modal-title">Enlaces Eliminados</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><table class="table table-sm table-striped"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody id="tablaEliminados"></tbody></table></div></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function toggleSatelitales() { const v = document.getElementById('tipo').value; document.getElementById('campos_satelitales').classList.toggle('d-none', !['LEO','LEO Itinerante','GEO'].includes(v)); }
     async function cargarEnlaces() {
         const r = await fetch('/enlaces/'); const d = await r.json();
-        const tb = document.getElementById('tablaEnlaces');
-        tb.innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td>${e.ancho_banda}</td><td>${e.moneda}</td><td>${e.precio_venta_sin_iva}</td><td>${e.precio_venta_con_iva}</td><td>${e.costo_instalacion}</td><td>${e.costo_mantenimiento}</td><td><span class="badge ${e.estado=='ACTIVO'?'bg-success':'bg-danger'}">${e.estado}</span></td><td><button class="btn btn-sm btn-outline-primary me-1" onclick="iniciarEdicion(${e.id})">Editar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
+        document.getElementById('tablaEnlaces').innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
     }
-    
-    async function st(id, s) { await fetch(`/enlaces/${id}/estado?estado=${s}`, {method:'PATCH'}); cargarEnlaces(); }
-    
-    async function iniciarEdicion(id) {
-        const r = await fetch(`/enlaces/${id}`);
-        const e = await r.json();
-        
+    async function eliminar(id) { if(confirm('¿Eliminar?')) { await fetch(`/enlaces/${id}/eliminar`, {method:'PATCH'}); cargarEnlaces(); } }
+    async function consultar(id) {
+        const r = await fetch(`/enlaces/${id}`); const e = await r.json();
+        document.getElementById('val_cupo').innerText = e.cupo_transferencia || 'N/A';
+        document.getElementById('val_gps').innerText = e.coordenadas_gps || 'N/A';
+        document.getElementById('val_antena').innerText = e.sn_antena || 'N/A';
+        document.getElementById('val_modem').innerText = e.sn_modem || 'N/A';
+        document.getElementById('val_te').innerText = e.nro_te || 'N/A';
+        document.getElementById('val_item').innerText = e.nro_item || 'N/A';
+        new bootstrap.Modal(document.getElementById('modalConsulta')).show();
+    }
+    async function editar(id) {
+        const r = await fetch(`/enlaces/${id}`); const e = await r.json();
+        document.getElementById('edit_id').value = e.id;
         document.getElementById('referencia').value = e.referencia;
         document.getElementById('fecha_alta').value = e.fecha_alta;
         document.getElementById('organismo').value = e.organismo;
         document.getElementById('localidad').value = e.localidad;
         document.getElementById('tipo').value = e.tipo_enlace;
+        toggleSatelitales();
+        document.getElementById('cupo_transferencia').value = e.cupo_transferencia || '';
+        document.getElementById('coordenadas_gps').value = e.coordenadas_gps || '';
+        document.getElementById('sn_antena').value = e.sn_antena || '';
+        document.getElementById('sn_modem').value = e.sn_modem || '';
+        document.getElementById('nro_te').value = e.nro_te || '';
+        document.getElementById('nro_item').value = e.nro_item || '';
         document.getElementById('ancho_banda').value = e.ancho_banda;
         document.getElementById('proveedor').value = e.proveedor;
-        document.getElementById('moneda').value = e.moneda;
-        document.getElementById('instalacion').value = e.costo_instalacion;
         document.getElementById('costo').value = e.precio_costo;
         document.getElementById('costo_mantenimiento').value = e.costo_mantenimiento;
         document.getElementById('venta_sin_iva').value = e.precio_venta_sin_iva;
-        document.getElementById('venta_con_iva').value = e.precio_venta_con_iva;
-        
-        idEdicion = id;
-        document.getElementById('tituloFormulario').textContent = "Editar Enlace";
-        const btnSubmit = document.getElementById('btnGuardar');
-        btnSubmit.textContent = "Actualizar Enlace";
-        btnSubmit.classList.replace('btn-primary', 'btn-warning');
-        
-        if(!document.getElementById('btnCancelarEdicion')) {
-            const btnCancelar = document.createElement('button');
-            btnCancelar.id = 'btnCancelarEdicion';
-            btnCancelar.type = 'button';
-            btnCancelar.className = 'btn btn-secondary w-100 mt-2';
-            btnCancelar.textContent = 'Cancelar Edición';
-            btnCancelar.onclick = cancelarEdicion;
-            document.getElementById('formAltaEnlace').appendChild(btnCancelar);
-        }
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('instalacion').value = e.costo_instalacion;
+        document.getElementById('venta_con_iva').value = (e.precio_venta_sin_iva * 1.21).toFixed(2);
+        document.getElementById('formTitle').innerText = "Editar Enlace";
+        document.getElementById('btnGuardar').innerText = "Actualizar";
+        document.getElementById('btnCancelar').classList.remove('d-none');
     }
-
-    function cancelarEdicion() {
-        idEdicion = null;
-        document.getElementById('formAltaEnlace').reset();
-        document.getElementById('tituloFormulario').textContent = "Alta de Nuevo Enlace";
-        const btnSubmit = document.getElementById('btnGuardar');
-        btnSubmit.textContent = "Guardar Enlace";
-        btnSubmit.classList.replace('btn-warning', 'btn-primary');
-        const btnCancelar = document.getElementById('btnCancelarEdicion');
-        if(btnCancelar) btnCancelar.remove();
-    }
-
+    function resetForm() { document.getElementById('formAltaEnlace').reset(); document.getElementById('edit_id').value = ''; document.getElementById('formTitle').innerText = "Alta de Nuevo Enlace"; document.getElementById('btnGuardar').innerText = "Guardar Enlace"; document.getElementById('btnCancelar').classList.add('d-none'); toggleSatelitales(); }
+    async function st(id, s) { await fetch(`/enlaces/${id}/estado?estado=${s}`, {method:'PATCH'}); cargarEnlaces(); }
+    async function verLogs() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaLogs').innerHTML = d.map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalLogs')).show(); }
+    async function verEliminados() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaEliminados').innerHTML = d.filter(l => l.accion === 'ELIMINAR').map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalEliminados')).show(); }
+    document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
     document.getElementById('formAltaEnlace').onsubmit = async (e) => {
-        e.preventDefault();
-        const p = {
-            referencia: document.getElementById('referencia').value, 
-            organismo: document.getElementById('organismo').value, 
-            localidad: document.getElementById('localidad').value, 
-            tipo_enlace: document.getElementById('tipo').value, 
-            ancho_banda: document.getElementById('ancho_banda').value, 
-            moneda: document.getElementById('moneda').value, 
-            precio_costo: parseFloat(document.getElementById('costo').value), 
-            costo_mantenimiento: parseFloat(document.getElementById('costo_mantenimiento').value), 
-            precio_venta_sin_iva: parseFloat(document.getElementById('venta_sin_iva').value), 
-            precio_venta_con_iva: parseFloat(document.getElementById('venta_con_iva').value), 
-            costo_instalacion: parseFloat(document.getElementById('instalacion').value), 
-            fecha_alta: document.getElementById('fecha_alta').value, 
-            proveedor: document.getElementById('proveedor').value
-        };
-        
-        if (idEdicion) {
-            await fetch(`/enlaces/${idEdicion}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-            cancelarEdicion();
-        } else {
-            await fetch('/enlaces/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-            document.getElementById('formAltaEnlace').reset();
-        }
-        cargarEnlaces();
+        e.preventDefault(); const id = document.getElementById('edit_id').value;
+        const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value, cupo_transferencia:document.getElementById('cupo_transferencia').value, coordenadas_gps:document.getElementById('coordenadas_gps').value, sn_antena:document.getElementById('sn_antena').value, sn_modem:document.getElementById('sn_modem').value, nro_te:document.getElementById('nro_te').value, nro_item:document.getElementById('nro_item').value};
+        const r = await fetch(id ? `/enlaces/${id}` : '/enlaces/', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        if (r.ok) { alert("Operación exitosa"); resetForm(); cargarEnlaces(); }
     };
-    
-    cargarEnlaces();
+    toggleSatelitales(); cargarEnlaces();
 </script>
 </body>
 </html>
