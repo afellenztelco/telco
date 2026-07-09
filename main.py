@@ -1,13 +1,12 @@
-import os
 import io
 import enum
 import secrets
-from datetime import date
-from typing import List
+from datetime import date, datetime
+from typing import List, Optional
 from fastapi import FastAPI, Depends, Request, HTTPException, status, Cookie, Form
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import create_engine, Column, Integer, String, Date, Numeric, Enum as SQLEnum
+from sqlalchemy import create_engine, Column, Integer, String, Date, Numeric, Enum as SQLEnum, DateTime, desc, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
 import pandas as pd
@@ -32,23 +31,11 @@ def verificar_usuario(session_user: str = Cookie(None)):
         )
     return session_user
 
-# --- NUEVA Configuración de Base de Datos ---
-# Busca la base de datos en la nube (Render), si no la encuentra, usa SQLite en tu PC
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./enlaces.db")
-
-# SQLAlchemy requiere que las URLs de Postgres empiecen con 'postgresql://'
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# Solo usamos check_same_thread si estamos en SQLite (local)
-if "sqlite" in DATABASE_URL:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    engine = create_engine(DATABASE_URL)
-
+# Configuración de Base de Datos
+DATABASE_URL = "sqlite:///./enlaces.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-# ---------------------------------------------
 
 class EstadoEnlace(str, enum.Enum):
     ACTIVO = "ACTIVO"
@@ -80,6 +67,23 @@ class Enlace(Base):
     costo_instalacion = Column(Numeric(12, 2), default=0.00)
     fecha_alta = Column(Date, nullable=False)
     proveedor = Column(String(100), nullable=False)
+    cupo_transferencia = Column(String(100), nullable=True)
+    coordenadas_gps = Column(String(100), nullable=True)
+    sn_antena = Column(String(100), nullable=True)
+    sn_modem = Column(String(100), nullable=True)
+    nro_te = Column(String(50), nullable=True)
+    nro_item = Column(String(50), nullable=True)
+    eliminado = Column(Boolean, default=False)
+
+# TABLA DE AUDITORÍA
+class LogActividad(Base):
+    __tablename__ = "logs_actividad"
+    id = Column(Integer, primary_key=True, index=True)
+    fecha_hora = Column(DateTime, default=datetime.now)
+    usuario = Column(String(50), nullable=False)
+    accion = Column(String(50), nullable=False)
+    entidad_id = Column(Integer, nullable=False)
+    detalle = Column(String(500), nullable=False)
 
 Base.metadata.create_all(bind=engine)
 
@@ -97,6 +101,12 @@ class EnlaceCreate(BaseModel):
     costo_instalacion: float
     fecha_alta: date
     proveedor: str
+    cupo_transferencia: Optional[str] = None
+    coordenadas_gps: Optional[str] = None
+    sn_antena: Optional[str] = None
+    sn_modem: Optional[str] = None
+    nro_te: Optional[str] = None
+    nro_item: Optional[str] = None
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -144,155 +154,87 @@ def crear_enlace(enlace: EnlaceCreate, db: Session = Depends(get_db), user: str 
     nuevo_enlace = Enlace(**enlace.model_dump())
     db.add(nuevo_enlace)
     db.commit()
+    db.refresh(nuevo_enlace)
+    db.add(LogActividad(usuario=user, accion="CREAR", entidad_id=nuevo_enlace.id, detalle=f"Creación: {nuevo_enlace.referencia}"))
+    db.commit()
+    return {"ok": True}
+
+@app.get("/enlaces/{id}")
+def obtener_enlace(id: int, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    return db.query(Enlace).filter(Enlace.id == id).first()
+
+@app.put("/enlaces/{id}")
+def actualizar_enlace(id: int, e: EnlaceCreate, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    db_e = db.query(Enlace).filter(Enlace.id == id).first()
+    cambios = []
+    for key, value in e.model_dump().items():
+        if str(getattr(db_e, key)) != str(value):
+            cambios.append(f"{key}: {getattr(db_e, key)} -> {value}")
+        setattr(db_e, key, value)
+    if cambios:
+        db.add(LogActividad(usuario=user, accion="EDITAR", entidad_id=id, detalle=" | ".join(cambios)[:500]))
+    db.commit()
     return {"ok": True}
 
 @app.get("/enlaces/")
 def listar_enlaces(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    return db.query(Enlace).all()
-
-@app.get("/enlaces/{enlace_id}")
-def obtener_enlace(enlace_id: int, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
-    if not enlace:
-        raise HTTPException(status_code=404, detail="Enlace no encontrado")
-    return enlace
-
-@app.put("/enlaces/{enlace_id}")
-def actualizar_enlace(enlace_id: int, enlace_data: EnlaceCreate, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
-    if not enlace:
-        raise HTTPException(status_code=404, detail="Enlace no encontrado")
-    
-    for key, value in enlace_data.model_dump().items():
-        setattr(enlace, key, value)
-        
-    db.commit()
-    return {"ok": True}
+    return db.query(Enlace).filter(Enlace.eliminado == False).all()
 
 @app.patch("/enlaces/{enlace_id}/estado")
 def cambiar_estado(enlace_id: int, estado: EstadoEnlace, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
     enlace = db.query(Enlace).filter(Enlace.id == enlace_id).first()
-    enlace.estado = estado
+    if enlace.estado != estado:
+        db.add(LogActividad(usuario=user, accion="CAMBIAR_ESTADO", entidad_id=enlace.id, detalle=f"Estado: {enlace.estado} -> {estado.value}"))
+        enlace.estado = estado
+        db.commit()
+    return {"ok": True}
+
+@app.patch("/enlaces/{id}/eliminar")
+def eliminar_enlace(id: int, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    enlace = db.query(Enlace).filter(Enlace.id == id).first()
+    enlace.eliminado = True
+    db.add(LogActividad(usuario=user, accion="ELIMINAR", entidad_id=enlace.id, detalle=f"Eliminación lógica: {enlace.referencia}"))
     db.commit()
     return {"ok": True}
 
+@app.get("/logs/")
+def listar_logs(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    return db.query(LogActividad).order_by(desc(LogActividad.fecha_hora)).limit(100).all()
+
+# --- REPORTES (Filtrados por eliminado == False) ---
 @app.get("/reportes/excel")
 def exportar_excel(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    data = [e.__dict__ for e in db.query(Enlace).all()]
+    data = [e.__dict__ for e in db.query(Enlace).filter(Enlace.eliminado == False).all()]
     df = pd.DataFrame(data)
-    
     wb = Workbook()
     ws = wb.active
-    
     header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
-    border = Border(
-        left=Side(style='thin'), 
-        right=Side(style='thin'), 
-        top=Side(style='thin'), 
-        bottom=Side(style='thin')
-    )
-    
-    headers = [
-        'Referencia', 'Organismo', 'Localidad', 'Tipo', 'Ancho Banda', 
-        'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instalacion', 'Mantenimiento', 'Alta'
-    ]
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    headers = ['Referencia', 'Organismo', 'Localidad', 'Tipo', 'Ancho Banda', 'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instalacion', 'Mantenimiento', 'Alta', 'Cupo', 'GPS', 'S/N Antena', 'S/N Modem', 'Nro TE', 'Nro ITEM']
     ws.append(headers)
-    
-    for cell in ws[1]: 
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        
+    for cell in ws[1]: cell.fill = header_fill; cell.font = header_font; cell.border = border
     for e in data:
-        row = [
-            e['referencia'], 
-            e['organismo'], 
-            e['localidad'], 
-            e['tipo_enlace'].value, 
-            e['ancho_banda'], 
-            e['moneda'], 
-            float(e['precio_venta_sin_iva']), 
-            float(e['precio_venta_con_iva']), 
-            float(e['costo_instalacion']), 
-            float(e['costo_mantenimiento']), 
-            str(e['fecha_alta'])
-        ]
+        row = [e['referencia'], e['organismo'], e['localidad'], e['tipo_enlace'].value, e['ancho_banda'], e['moneda'], float(e['precio_venta_sin_iva']), float(e['precio_venta_con_iva']), float(e['costo_instalacion']), float(e['costo_mantenimiento']), str(e['fecha_alta']), e.get('cupo_transferencia', ''), e.get('coordenadas_gps', ''), e.get('sn_antena', ''), e.get('sn_modem', ''), e.get('nro_te', ''), e.get('nro_item', '')]
         ws.append(row)
-        for cell in ws[ws.max_row]: 
-            cell.border = border
-            
-    totales = [
-        'TOTALES', '', '', '', '', '', 
-        df['precio_venta_sin_iva'].sum() if not df.empty else 0, 
-        df['precio_venta_con_iva'].sum() if not df.empty else 0, 
-        df['costo_instalacion'].sum() if not df.empty else 0, 
-        df['costo_mantenimiento'].sum() if not df.empty else 0, 
-        ''
-    ]
+        for cell in ws[ws.max_row]: cell.border = border
+    totales = ['TOTALES', '', '', '', '', '', df['precio_venta_sin_iva'].sum(), df['precio_venta_con_iva'].sum(), df['costo_instalacion'].sum(), df['costo_mantenimiento'].sum(), '', '', '', '', '', '', '']
     ws.append(totales)
-    
-    stream = io.BytesIO()
-    wb.save(stream)
-    stream.seek(0)
-    
-    return StreamingResponse(
-        stream, 
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-        headers={"Content-Disposition": "attachment; filename=Reporte.xlsx"}
-    )
+    stream = io.BytesIO(); wb.save(stream); stream.seek(0)
+    return StreamingResponse(stream, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=Reporte.xlsx"})
 
 @app.get("/reportes/pdf")
 def exportar_pdf(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    data = [e.__dict__ for e in db.query(Enlace).all()]
+    data = [e.__dict__ for e in db.query(Enlace).filter(Enlace.eliminado == False).all()]
     df = pd.DataFrame(data)
-    
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4))
-    
-    table_data = [[
-        'Ref', 'Organismo', 'Localidad', 'Tipo', 'Ancho B.', 
-        'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instal.', 'Mant.', 'Alta'
-    ]]
-    
+    table_data = [['Ref', 'Organismo', 'Localidad', 'Tipo', 'Ancho B.', 'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instal.', 'Mant.', 'Alta']]
     for e in data:
-        ref = e['referencia']
-        org = e['organismo']
-        loc = e['localidad']
-        tipo = e['tipo_enlace'].value
-        ancho = e['ancho_banda']
-        moneda = e['moneda']
-        vta_s_iva = f"{float(e['precio_venta_sin_iva']):.2f}"
-        vta_c_iva = f"{float(e['precio_venta_con_iva']):.2f}"
-        instalacion = f"{float(e['costo_instalacion']):.2f}"
-        mantenimiento = f"{float(e['costo_mantenimiento']):.2f}"
-        fecha_alta = str(e['fecha_alta'])
-        
-        row = [ref, org, loc, tipo, ancho, moneda, vta_s_iva, vta_c_iva, instalacion, mantenimiento, fecha_alta]
-        table_data.append(row)
-        
-    totales_row = [
-        'TOTALES', '', '', '', '', '', 
-        f"{df['precio_venta_sin_iva'].sum():.2f}" if not df.empty else "0.00", 
-        f"{df['precio_venta_con_iva'].sum():.2f}" if not df.empty else "0.00", 
-        f"{df['costo_instalacion'].sum():.2f}" if not df.empty else "0.00", 
-        f"{df['costo_mantenimiento'].sum():.2f}" if not df.empty else "0.00", 
-        ''
-    ]
-    table_data.append(totales_row)
-    
+        table_data.append([e['referencia'], e['organismo'], e['localidad'], e['tipo_enlace'].value, e['ancho_banda'], e['moneda'], f"{float(e['precio_venta_sin_iva']):.2f}", f"{float(e['precio_venta_con_iva']):.2f}", f"{float(e['costo_instalacion']):.2f}", f"{float(e['costo_mantenimiento']):.2f}", str(e['fecha_alta'])])
+    table_data.append(['TOTALES', '', '', '', '', '', f"{df['precio_venta_sin_iva'].sum():.2f}", f"{df['precio_venta_con_iva'].sum():.2f}", f"{df['costo_instalacion'].sum():.2f}", f"{df['costo_mantenimiento'].sum():.2f}", ''])
     t = Table(table_data)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F497D')), 
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), 
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black)
-    ]))
-    
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F497D')), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.black)]))
     doc.build([Paragraph("Reporte Institucional de Enlaces", getSampleStyleSheet()['Heading2']), Spacer(1, 10), t])
     pdf_buffer.seek(0)
-    
-    return StreamingResponse(
-        pdf_buffer, 
-        media_type="application/pdf", 
-        headers={"Content-Disposition": "attachment; filename=Reporte.pdf"}
-    )
+    return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=Reporte.pdf"})
