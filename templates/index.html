@@ -33,6 +33,8 @@
                         <input type="hidden" id="edit_id">
                         <div class="row mb-2"><div class="col-6"><label class="form-label mb-1">Referencia</label><input type="text" class="form-control form-control-sm" id="referencia" required></div><div class="col-6"><label class="form-label mb-1">Fecha Alta</label><input type="date" class="form-control form-control-sm" id="fecha_alta" required></div></div>
                         <div class="mb-2"><label class="form-label mb-1">Organismo</label><input type="text" class="form-control form-control-sm" id="organismo" required></div>
+                        <!-- NUEVO CAMPO UBICACION -->
+                        <div class="mb-2"><label class="form-label mb-1">Ubicación</label><input type="text" class="form-control form-control-sm" id="ubicacion"></div>
                         <div class="mb-2"><label class="form-label mb-1">Localidad</label><input class="form-control form-control-sm" list="listaLoc" id="localidad" required><datalist id="listaLoc"><option value="Viedma"><option value="Aguada Guzmán"><option value="Ojos de Agua"><option value="Río Chico Abajo"></datalist></div>
                         <div class="mb-3"><label class="form-label mb-1">Tipo de Enlace</label><select class="form-select form-select-sm" id="tipo" required onchange="toggleSatelitales()"><option value="Fibra Optica dedicado">Fibra Optica dedicado</option><option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option><option value="Radio Frecuencia">Radio Frecuencia</option><option value="LEO">LEO</option><option value="LEO Itinerante">LEO Itinerante</option><option value="GEO">GEO</option><option value="L2L (transporte de datos)">L2L (transporte de datos)</option></select></div>
                         <div id="campos_satelitales" class="d-none bg-light p-2 border rounded mb-3">
@@ -55,7 +57,8 @@
         </div>
         <div class="col-xl-9 col-lg-8">
             <div class="card"><div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><h6 class="mb-0">Padrón de Enlaces</h6><div><a href="/reportes/pdf" class="btn btn-sm btn-outline-light me-2" target="_blank">📄 PDF</a><a href="/reportes/excel" class="btn btn-sm btn-outline-success text-white">📊 Excel</a></div></div>
-                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>Ref</th><th>Organismo</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
+                <!-- NUEVO CAMPO UBICACION EN LA TABLA -->
+                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>Ref</th><th>Organismo</th><th>Ubicación</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
             </div>
         </div>
     </div>
@@ -70,7 +73,8 @@
     function toggleSatelitales() { const v = document.getElementById('tipo').value; document.getElementById('campos_satelitales').classList.toggle('d-none', !['LEO','LEO Itinerante','GEO'].includes(v)); }
     async function cargarEnlaces() {
         const r = await fetch('/enlaces/'); const d = await r.json();
-        document.getElementById('tablaEnlaces').innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
+        // SE AÑADIÓ ${e.ubicacion || ''} a las celdas de la tabla
+        document.getElementById('tablaEnlaces').innerHTML = d.map(e => `<tr><td>${e.referencia}</td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
     }
     async function eliminar(id) { if(confirm('¿Eliminar?')) { await fetch(`/enlaces/${id}/eliminar`, {method:'PATCH'}); cargarEnlaces(); } }
     async function consultar(id) {
@@ -89,6 +93,8 @@
         document.getElementById('referencia').value = e.referencia;
         document.getElementById('fecha_alta').value = e.fecha_alta;
         document.getElementById('organismo').value = e.organismo;
+        // SE AÑADIÓ asignación al campo ubicacion
+        document.getElementById('ubicacion').value = e.ubicacion || '';
         document.getElementById('localidad').value = e.localidad;
         document.getElementById('tipo').value = e.tipo_enlace;
         toggleSatelitales();
@@ -116,11 +122,15 @@
     document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
     document.getElementById('formAltaEnlace').onsubmit = async (e) => {
         e.preventDefault(); const id = document.getElementById('edit_id').value;
-        const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value, cupo_transferencia:document.getElementById('cupo_transferencia').value, coordenadas_gps:document.getElementById('coordenadas_gps').value, sn_antena:document.getElementById('sn_antena').value, sn_modem:document.getElementById('sn_modem').value, nro_te:document.getElementById('nro_te').value, nro_item:document.getElementById('nro_item').value};
+        // SE AÑADIÓ ubicacion al JSON a enviar
+        const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, ubicacion:document.getElementById('ubicacion').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value, cupo_transferencia:document.getElementById('cupo_transferencia').value, coordenadas_gps:document.getElementById('coordenadas_gps').value, sn_antena:document.getElementById('sn_antena').value, sn_modem:document.getElementById('sn_modem').value, nro_te:document.getElementById('nro_te').value, nro_item:document.getElementById('nro_item').value};
         const r = await fetch(id ? `/enlaces/${id}` : '/enlaces/', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
         if (r.ok) { alert("Operación exitosa"); resetForm(); cargarEnlaces(); }
     };
     toggleSatelitales(); cargarEnlaces();
 </script>
+
+<!-- FOOTER AÑADIDO -->
+<div style="position: fixed; bottom: 10px; right: 15px; font-weight: bold; font-size: 12px; color: #555; z-index: 9999;">Copyright By SiDnEy! 2006.</div>
 </body>
 </html>
