@@ -55,7 +55,8 @@ class Enlace(Base):
     id = Column(Integer, primary_key=True, index=True)
     referencia = Column(String(50), unique=True, index=True, nullable=False)
     organismo = Column(String(150), nullable=False)
-    ubicacion = Column(String(150), nullable=True) # <-- NUEVO CAMPO UBICACION
+    ubicacion = Column(String(150), nullable=True) 
+    observaciones = Column(String(1000), nullable=True) # <-- NUEVO CAMPO OBSERVACIONES
     localidad = Column(String(100), nullable=False)
     tipo_enlace = Column(SQLEnum(TipoEnlace), nullable=False)
     estado = Column(SQLEnum(EstadoEnlace), default=EstadoEnlace.ACTIVO)
@@ -91,7 +92,8 @@ Base.metadata.create_all(bind=engine)
 class EnlaceCreate(BaseModel):
     referencia: str
     organismo: str
-    ubicacion: Optional[str] = None # <-- NUEVO CAMPO UBICACION
+    ubicacion: Optional[str] = None 
+    observaciones: Optional[str] = None # <-- NUEVO CAMPO OBSERVACIONES
     localidad: str
     tipo_enlace: TipoEnlace
     ancho_banda: str
@@ -213,16 +215,13 @@ def exportar_excel(db: Session = Depends(get_db), user: str = Depends(verificar_
     header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    # Se agregó "Ubicación" a los headers
     headers = ['Referencia', 'Organismo', 'Ubicación', 'Localidad', 'Tipo', 'Ancho Banda', 'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instalacion', 'Mantenimiento', 'Alta', 'Cupo', 'GPS', 'S/N Antena', 'S/N Modem', 'Nro TE', 'Nro ITEM']
     ws.append(headers)
     for cell in ws[1]: cell.fill = header_fill; cell.font = header_font; cell.border = border
     for e in data:
-        # Se agregó e.get('ubicacion', '') a la fila
         row = [e['referencia'], e['organismo'], e.get('ubicacion', ''), e['localidad'], e['tipo_enlace'].value, e['ancho_banda'], e['moneda'], float(e['precio_venta_sin_iva']), float(e['precio_venta_con_iva']), float(e['costo_instalacion']), float(e['costo_mantenimiento']), str(e['fecha_alta']), e.get('cupo_transferencia', ''), e.get('coordenadas_gps', ''), e.get('sn_antena', ''), e.get('sn_modem', ''), e.get('nro_te', ''), e.get('nro_item', '')]
         ws.append(row)
         for cell in ws[ws.max_row]: cell.border = border
-    # Se ajustó el array de totales añadiendo un string vacío extra para acomodar la nueva columna
     totales = ['TOTALES', '', '', '', '', '', '', df['precio_venta_sin_iva'].sum(), df['precio_venta_con_iva'].sum(), df['costo_instalacion'].sum(), df['costo_mantenimiento'].sum(), '', '', '', '', '', '', '']
     ws.append(totales)
     stream = io.BytesIO(); wb.save(stream); stream.seek(0)
@@ -234,12 +233,9 @@ def exportar_pdf(db: Session = Depends(get_db), user: str = Depends(verificar_us
     df = pd.DataFrame(data)
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4))
-    # Se agregó "Ubicación" a los headers
     table_data = [['Ref', 'Organismo', 'Ubicación', 'Localidad', 'Tipo', 'Ancho B.', 'Moneda', 'Vta s/IVA', 'Vta c/IVA', 'Instal.', 'Mant.', 'Alta']]
     for e in data:
-        # Se agregó e.get('ubicacion', '') a la fila
         table_data.append([e['referencia'], e['organismo'], e.get('ubicacion', ''), e['localidad'], e['tipo_enlace'].value, e['ancho_banda'], e['moneda'], f"{float(e['precio_venta_sin_iva']):.2f}", f"{float(e['precio_venta_con_iva']):.2f}", f"{float(e['costo_instalacion']):.2f}", f"{float(e['costo_mantenimiento']):.2f}", str(e['fecha_alta'])])
-    # Se ajustó el array de totales añadiendo un string vacío extra para acomodar la nueva columna
     table_data.append(['TOTALES', '', '', '', '', '', '', f"{df['precio_venta_sin_iva'].sum():.2f}", f"{df['precio_venta_con_iva'].sum():.2f}", f"{df['costo_instalacion'].sum():.2f}", f"{df['costo_mantenimiento'].sum():.2f}", ''])
     t = Table(table_data)
     t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F497D')), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.black)]))
