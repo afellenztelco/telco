@@ -297,8 +297,15 @@ def listar_logs(db: Session = Depends(get_db), user: str = Depends(verificar_usu
 
 # --- REPORTES (Filtrados por eliminado == False) ---
 @app.get("/reportes/excel")
-def exportar_excel(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
-    data = [e.__dict__ for e in db.query(Enlace).filter(Enlace.eliminado == False).all()]
+def exportar_excel(organismo: Optional[str] = None, localidad: Optional[str] = None, db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
+    query = db.query(Enlace).filter(Enlace.eliminado == False)
+    
+    if organismo:
+        query = query.filter(Enlace.organismo.ilike(f"%{organismo}%"))
+    if localidad:
+        query = query.filter(Enlace.localidad.ilike(f"%{localidad}%"))
+        
+    data = [e.__dict__ for e in query.all()]
     df = pd.DataFrame(data)
     wb = Workbook()
     ws = wb.active
@@ -329,7 +336,7 @@ def exportar_excel(db: Session = Depends(get_db), user: str = Depends(verificar_
         ws.append(totales)
         
     stream = io.BytesIO(); wb.save(stream); stream.seek(0)
-    return StreamingResponse(stream, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=Reporte.xlsx"})
+    return StreamingResponse(stream, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=Reporte_Filtrado.xlsx"})
 
 @app.get("/reportes/pdf")
 def exportar_pdf(db: Session = Depends(get_db), user: str = Depends(verificar_usuario)):
