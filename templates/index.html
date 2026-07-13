@@ -25,6 +25,8 @@
             {% if session_user == 'afellenz' %}
             <button onclick="gestionarUsuarios()" class="btn btn-sm btn-outline-secondary me-2">Usuarios</button>
             {% endif %}
+            <!-- NUEVO BOTÓN AGREGADO -->
+            <button onclick="abrirFiltros()" class="btn btn-sm btn-outline-success me-2">Filtrar / Exportar</button>
             <button onclick="window.location.href='/logout'" class="btn btn-sm btn-outline-danger">Cerrar Sesión</button>
         </div>
     </div>
@@ -70,7 +72,49 @@
     </div>
 </div>
 
-<!-- NUEVOS MODALES PARA USUARIOS -->
+<!-- NUEVO MODAL: FILTROS Y EXPORTACIÓN -->
+<div class="modal fade" id="modalFiltros" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white py-2 align-items-center">
+                <h6 class="modal-title mb-0">Filtrar y Exportar Enlaces</h6>
+                <div class="ms-auto d-flex align-items-center">
+                    <button class="btn btn-sm btn-light me-3" onclick="exportarExcelFiltrado()">📊 Exportar Excel</button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label mb-1 fw-bold">Filtrar por Organismo</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="filtro_organismo" onkeyup="aplicarFiltros()" placeholder="Escriba organismo...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label mb-1 fw-bold">Filtrar por Localidad</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="filtro_localidad" onkeyup="aplicarFiltros()" placeholder="Escriba localidad...">
+                    </div>
+                </div>
+                <div class="table-responsive bg-white rounded shadow-sm border">
+                    <table class="table table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr>
+                                <th>ITEM</th>
+                                <th>Ref</th>
+                                <th>Organismo</th>
+                                <th>Ubicación</th>
+                                <th>Localidad</th>
+                                <th>Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEnlacesFiltrados"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODALES PARA USUARIOS -->
 <div class="modal fade" id="modalUsuarios" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -147,6 +191,35 @@
         document.getElementById('tablaEnlaces').innerHTML = d.map((e, index) => `<tr><td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;" title="Ver observaciones">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
     }
     
+    // LOGICA NUEVA PARA EL POPUP DE FILTROS Y EXPORTACION
+    function abrirFiltros() {
+        document.getElementById('filtro_organismo').value = '';
+        document.getElementById('filtro_localidad').value = '';
+        aplicarFiltros();
+        new bootstrap.Modal(document.getElementById('modalFiltros')).show();
+    }
+
+    function aplicarFiltros() {
+        const org = document.getElementById('filtro_organismo').value.toLowerCase();
+        const loc = document.getElementById('filtro_localidad').value.toLowerCase();
+        
+        const filtrados = listadoEnlaces.filter(e => 
+            (e.organismo || '').toLowerCase().includes(org) && 
+            (e.localidad || '').toLowerCase().includes(loc)
+        );
+
+        document.getElementById('tablaEnlacesFiltrados').innerHTML = filtrados.map((e, index) => `<tr><td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td></tr>`).join('');
+    }
+
+    function exportarExcelFiltrado() {
+        const org = document.getElementById('filtro_organismo').value;
+        const loc = document.getElementById('filtro_localidad').value;
+        let url = '/reportes/excel?';
+        if (org) url += `organismo=${encodeURIComponent(org)}&`;
+        if (loc) url += `localidad=${encodeURIComponent(loc)}&`;
+        window.open(url, '_blank');
+    }
+
     function mostrarObservaciones(id) {
         const e = listadoEnlaces.find(x => x.id === id);
         if (e) {
