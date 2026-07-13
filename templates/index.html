@@ -10,7 +10,6 @@
         .navbar-brand { font-weight: bold; color: #1F497D !important; }
         .card { box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: none; }
         .table th { background-color: #1F497D; color: white; font-weight: 500; font-size: 0.75rem; }
-        /* Pequeño ajuste para que el enlace de referencia resalte sutilmente */
         .link-referencia { font-weight: bold; text-decoration: none; color: #1F497D; cursor: pointer; }
         .link-referencia:hover { text-decoration: underline; }
     </style>
@@ -18,11 +17,14 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm py-2">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">ALTEC - Gcia. de Operaciones - Gestion de enlaces</a>
+        <a class="navbar-brand" href="#">ALTEC - Gcia. de Operaciones - Gestion de Enlaces</a>
         <div class="d-flex align-items-center">
             <span class="navbar-text me-3">Sistema de Gestión de Enlaces</span>
             <button onclick="verEliminados()" class="btn btn-sm btn-outline-warning me-2">Eliminados</button>
             <button onclick="verLogs()" class="btn btn-sm btn-outline-info me-2">Auditoría</button>
+            {% if session_user == 'afellenz' %}
+            <button onclick="gestionarUsuarios()" class="btn btn-sm btn-outline-secondary me-2">Usuarios</button>
+            {% endif %}
             <button onclick="window.location.href='/logout'" class="btn btn-sm btn-outline-danger">Cerrar Sesión</button>
         </div>
     </div>
@@ -51,8 +53,8 @@
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1">Ancho Banda</label><input type="text" class="form-control form-control-sm" id="ancho_banda" required></div><div class="col-6"><label class="form-label mb-1">Proveedor</label><input type="text" class="form-control form-control-sm" id="proveedor" required></div></div>
                         <div class="row mb-2"><div class="col-4"><label class="form-label mb-1">Moneda</label><select class="form-select form-select-sm" id="moneda"><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div class="col-8"><label class="form-label mb-1">Instalación</label><input type="number" step="0.01" class="form-control form-control-sm" id="instalacion" value="0" required></div></div>
                         <div class="row mb-3"><div class="col-6"><label class="form-label mb-1 text-danger">Costo Mensual</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo" required></div><div class="col-6"><label class="form-label mb-1 text-primary">MANTENIMIENTO (ARS)</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo_mantenimiento" value="0" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta SIN IVA</label><input type="number" step="0.01" class="form-control form-control-sm" id="venta_sin_iva" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta CON IVA</label><input type="number" step="0.01" class="form-control form-control-sm bg-light" id="venta_con_iva" readonly></div></div>
-                        <!-- NUEVO CAMPO OBSERVACIONES -->
                         <div class="mb-3"><label class="form-label mb-1">Observaciones</label><textarea class="form-control form-control-sm" id="observaciones" rows="2"></textarea></div>
+                        <div class="mb-3"><label class="form-label mb-1">Solicitud de Alta (Opcional - PDF/JPG)</label><input type="file" class="form-control form-control-sm" id="archivo_adjunto" accept=".pdf, .jpg, .jpeg"></div>
                         
                         <button type="submit" class="btn btn-primary w-100" id="btnGuardar">Guardar Enlace</button>
                         <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancelar" onclick="resetForm()">Cancelar</button>
@@ -62,13 +64,59 @@
         </div>
         <div class="col-xl-9 col-lg-8">
             <div class="card"><div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><h6 class="mb-0">Padrón de Enlaces</h6><div><a href="/reportes/pdf" class="btn btn-sm btn-outline-light me-2" target="_blank">📄 PDF</a><a href="/reportes/excel" class="btn btn-sm btn-outline-success text-white">📊 Excel</a></div></div>
-                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>Ref</th><th>Organismo</th><th>Ubicación</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
+                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>ITEM</th><th>Ref</th><th>Organismo</th><th>Ubicación</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- NUEVO MODAL DE OBSERVACIONES -->
+<!-- NUEVOS MODALES PARA USUARIOS -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h6 class="modal-title">Gestión de Usuarios</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-2 text-end">
+                    <button class="btn btn-sm btn-primary" onclick="abrirFormUsuario()">+ Agregar Usuario</button>
+                </div>
+                <table class="table table-sm table-striped mb-0 text-center">
+                    <thead><tr><th>ID</th><th>Usuario</th><th>Acción</th></tr></thead>
+                    <tbody id="tablaUsuariosLista"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalFormUsuario" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h6 class="modal-title" id="tituloFormUsuario">Nuevo Usuario</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formUsuario">
+                    <input type="hidden" id="usuario_id">
+                    <div class="mb-2">
+                        <label class="form-label mb-1">Usuario</label>
+                        <input type="text" class="form-control form-control-sm" id="nuevo_username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label mb-1">Contraseña</label>
+                        <input type="text" class="form-control form-control-sm" id="nuevo_password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 btn-sm">Guardar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OTROS MODALES -->
 <div class="modal fade" id="modalObservaciones" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -78,6 +126,7 @@
             </div>
             <div class="modal-body">
                 <p id="textoObservaciones" class="mb-0 text-break" style="white-space: pre-wrap;"></p>
+                <div id="contenedorAdjunto" class="mt-3 text-center"></div>
             </div>
         </div>
     </div>
@@ -89,23 +138,28 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Variable global para acceder fácilmente a los enlaces cargados
     let listadoEnlaces = [];
 
     function toggleSatelitales() { const v = document.getElementById('tipo').value; document.getElementById('campos_satelitales').classList.toggle('d-none', !['LEO','LEO Itinerante','GEO'].includes(v)); }
     async function cargarEnlaces() {
         const r = await fetch('/enlaces/'); const d = await r.json();
-        listadoEnlaces = d; // Guardar datos para los popups locales
-        // La columna de referencia ahora es un enlace a mostrarObservaciones(id)
-        document.getElementById('tablaEnlaces').innerHTML = d.map(e => `<tr><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;" title="Ver observaciones">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
+        listadoEnlaces = d; 
+        document.getElementById('tablaEnlaces').innerHTML = d.map((e, index) => `<tr><td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;" title="Ver observaciones">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
     }
     
-    // NUEVA FUNCIÓN: Mostrar observaciones
     function mostrarObservaciones(id) {
         const e = listadoEnlaces.find(x => x.id === id);
         if (e) {
             document.getElementById('tituloObservaciones').innerText = `Observaciones - Ref: ${e.referencia}`;
             document.getElementById('textoObservaciones').innerText = e.observaciones ? e.observaciones : 'No hay observaciones cargadas para este enlace.';
+            
+            const contenedorAdjunto = document.getElementById('contenedorAdjunto');
+            if (e.archivo_adjunto) {
+                contenedorAdjunto.innerHTML = `<hr><a href="/adjuntos/${e.archivo_adjunto}" target="_blank" class="btn btn-sm btn-outline-primary">📄 Ver Solicitud de Alta Adjunta</a>`;
+            } else {
+                contenedorAdjunto.innerHTML = '';
+            }
+
             new bootstrap.Modal(document.getElementById('modalObservaciones')).show();
         }
     }
@@ -128,7 +182,7 @@
         document.getElementById('fecha_alta').value = e.fecha_alta;
         document.getElementById('organismo').value = e.organismo;
         document.getElementById('ubicacion').value = e.ubicacion || '';
-        document.getElementById('observaciones').value = e.observaciones || ''; // Cargar observaciones al editar
+        document.getElementById('observaciones').value = e.observaciones || ''; 
         document.getElementById('localidad').value = e.localidad;
         document.getElementById('tipo').value = e.tipo_enlace;
         toggleSatelitales();
@@ -154,13 +208,85 @@
     async function verLogs() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaLogs').innerHTML = d.map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalLogs')).show(); }
     async function verEliminados() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaEliminados').innerHTML = d.filter(l => l.accion === 'ELIMINAR').map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalEliminados')).show(); }
     document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
+    
     document.getElementById('formAltaEnlace').onsubmit = async (e) => {
         e.preventDefault(); const id = document.getElementById('edit_id').value;
-        // SE AÑADIÓ observaciones al JSON
         const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, ubicacion:document.getElementById('ubicacion').value, observaciones:document.getElementById('observaciones').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value, cupo_transferencia:document.getElementById('cupo_transferencia').value, coordenadas_gps:document.getElementById('coordenadas_gps').value, sn_antena:document.getElementById('sn_antena').value, sn_modem:document.getElementById('sn_modem').value, nro_te:document.getElementById('nro_te').value, nro_item:document.getElementById('nro_item').value};
+        
         const r = await fetch(id ? `/enlaces/${id}` : '/enlaces/', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
-        if (r.ok) { alert("Operación exitosa"); resetForm(); cargarEnlaces(); }
+        if (r.ok) { 
+            const data = await r.json();
+            const targetId = data.id;
+            
+            const fileInput = document.getElementById('archivo_adjunto');
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+                await fetch(`/enlaces/${targetId}/adjunto`, { method: 'POST', body: formData });
+            }
+
+            alert("Operación exitosa"); 
+            resetForm(); 
+            cargarEnlaces(); 
+        }
     };
+    
+    // JS - GESTION DE USUARIOS
+    async function gestionarUsuarios() {
+        const r = await fetch('/usuarios/');
+        if(r.ok) {
+            const d = await r.json();
+            document.getElementById('tablaUsuariosLista').innerHTML = d.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning" onclick="editarUsuario(${u.id}, '${u.username}')">Editar</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${u.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+            new bootstrap.Modal(document.getElementById('modalUsuarios')).show();
+        } else {
+            alert("No autorizado para gestionar usuarios.");
+        }
+    }
+    function abrirFormUsuario() {
+        document.getElementById('formUsuario').reset();
+        document.getElementById('usuario_id').value = '';
+        document.getElementById('tituloFormUsuario').innerText = 'Nuevo Usuario';
+        new bootstrap.Modal(document.getElementById('modalFormUsuario')).show();
+    }
+    function editarUsuario(id, username) {
+        document.getElementById('formUsuario').reset();
+        document.getElementById('usuario_id').value = id;
+        document.getElementById('nuevo_username').value = username;
+        document.getElementById('tituloFormUsuario').innerText = 'Editar Usuario';
+        new bootstrap.Modal(document.getElementById('modalFormUsuario')).show();
+    }
+    async function eliminarUsuario(id) {
+        if(confirm('¿Eliminar usuario del sistema?')) {
+            await fetch(`/usuarios/${id}`, {method: 'DELETE'});
+            gestionarUsuarios();
+        }
+    }
+    document.getElementById('formUsuario').onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('usuario_id').value;
+        const p = {
+            username: document.getElementById('nuevo_username').value,
+            password: document.getElementById('nuevo_password').value
+        };
+        await fetch(id ? `/usuarios/${id}` : '/usuarios/', {
+            method: id ? 'PUT' : 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(p)
+        });
+        const m = bootstrap.Modal.getInstance(document.getElementById('modalFormUsuario'));
+        if(m) m.hide();
+        gestionarUsuarios();
+    };
+
     toggleSatelitales(); cargarEnlaces();
 </script>
 
