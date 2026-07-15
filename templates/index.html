@@ -12,20 +12,29 @@
         .table th { background-color: #1F497D; color: white; font-weight: 500; font-size: 0.75rem; }
         .link-referencia { font-weight: bold; text-decoration: none; color: #1F497D; cursor: pointer; }
         .link-referencia:hover { text-decoration: underline; }
+        .sticky-navbar { position: sticky; top: 0; z-index: 1050; }
+        .sticky-form { position: -webkit-sticky; position: sticky; top: 90px; max-height: calc(100vh - 110px); overflow-y: auto; }
+        .sticky-form::-webkit-scrollbar { width: 6px; }
+        .sticky-form::-webkit-scrollbar-track { background: transparent; }
+        .sticky-form::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .sticky-form::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .metric-value { font-size: 1.8rem; line-height: 1.2; }
     </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm py-2">
+<nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm py-2 sticky-navbar">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">ALTEC - Gcia. de Operaciones - Gestion de Enlaces</a>
         <div class="d-flex align-items-center">
             <span class="navbar-text me-3">Sistema de Gestión de Enlaces</span>
+            <button onclick="abrirResumen()" class="btn btn-sm btn-outline-primary me-2">Métricas</button>
+            <button onclick="abrirFacturacion()" class="btn btn-sm btn-outline-primary me-2">A Facturar</button>
+            <button onclick="gestionarTarifas()" class="btn btn-sm btn-outline-info me-2">Tabla de Costos</button>
             <button onclick="verEliminados()" class="btn btn-sm btn-outline-warning me-2">Eliminados</button>
             <button onclick="verLogs()" class="btn btn-sm btn-outline-info me-2">Auditoría</button>
             {% if session_user == 'afellenz' %}
             <button onclick="gestionarUsuarios()" class="btn btn-sm btn-outline-secondary me-2">Usuarios</button>
             {% endif %}
-            <!-- NUEVO BOTÓN AGREGADO -->
             <button onclick="abrirFiltros()" class="btn btn-sm btn-outline-success me-2">Filtrar / Exportar</button>
             <button onclick="window.location.href='/logout'" class="btn btn-sm btn-outline-danger">Cerrar Sesión</button>
         </div>
@@ -33,7 +42,7 @@
 </nav>
 <div class="container-fluid px-4">
     <div class="row">
-        <div class="col-xl-3 col-lg-4">
+        <div class="col-xl-3 col-lg-4 sticky-form">
             <div class="card mb-4"><div class="card-header bg-primary text-white"><h6 id="formTitle" class="mb-0 py-1">Alta de Nuevo Enlace</h6></div>
                 <div class="card-body">
                     <form id="formAltaEnlace">
@@ -41,8 +50,20 @@
                         <div class="row mb-2"><div class="col-6"><label class="form-label mb-1">Referencia</label><input type="text" class="form-control form-control-sm" id="referencia" required></div><div class="col-6"><label class="form-label mb-1">Fecha Alta</label><input type="date" class="form-control form-control-sm" id="fecha_alta" required></div></div>
                         <div class="mb-2"><label class="form-label mb-1">Organismo</label><input type="text" class="form-control form-control-sm" id="organismo" required></div>
                         <div class="mb-2"><label class="form-label mb-1">Ubicación</label><input type="text" class="form-control form-control-sm" id="ubicacion"></div>
-                        <div class="mb-2"><label class="form-label mb-1">Localidad</label><input class="form-control form-control-sm" list="listaLoc" id="localidad" required><datalist id="listaLoc"><option value="Viedma"><option value="Aguada Guzmán"><option value="Ojos de Agua"><option value="Río Chico Abajo"></datalist></div>
-                        <div class="mb-3"><label class="form-label mb-1">Tipo de Enlace</label><select class="form-select form-select-sm" id="tipo" required onchange="toggleSatelitales()"><option value="Fibra Optica dedicado">Fibra Optica dedicado</option><option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option><option value="Radio Frecuencia">Radio Frecuencia</option><option value="LEO">LEO</option><option value="LEO Itinerante">LEO Itinerante</option><option value="GEO">GEO</option><option value="L2L (transporte de datos)">L2L (transporte de datos)</option></select></div>
+                        <div class="mb-2"><label class="form-label mb-1">Localidad</label><input class="form-control form-control-sm" list="listaLoc" id="localidad" required><datalist id="listaLoc"><option value="Viedma"></option><option value="Aguada Guzmán"></option><option value="Ojos de Agua"></option><option value="Río Chico Abajo"></option></datalist></div>
+                        <div class="mb-3">
+                            <label class="form-label mb-1">Tipo de Enlace</label>
+                            <select class="form-select form-select-sm" id="tipo" required onchange="toggleSatelitales(); autocompletarCostos()">
+                                <option value="Fibra Optica dedicado">Fibra Optica dedicado</option>
+                                <option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option>
+                                <option value="Radio Frecuencia">Radio Frecuencia</option>
+                                <option value="LEO">LEO</option>
+                                <option value="LEO Itinerante">LEO Itinerante</option>
+                                <option value="LEO 1 TB">LEO 1 TB</option>
+                                <option value="GEO">GEO</option>
+                                <option value="L2L (transporte de datos)">L2L (transporte de datos)</option>
+                            </select>
+                        </div>
                         <div id="campos_satelitales" class="d-none bg-light p-2 border rounded mb-3">
                             <h6 class="text-secondary mb-2" style="font-size: 0.75rem; font-weight: bold;">Datos Satelitales</h6>
                             <input type="text" class="form-control form-control-sm mb-1" id="cupo_transferencia" placeholder="Cupo Transferencia">
@@ -52,12 +73,22 @@
                             <input type="text" class="form-control form-control-sm mb-1" id="nro_te" placeholder="Nro de TE">
                             <input type="text" class="form-control form-control-sm" id="nro_item" placeholder="Nro de ITEM">
                         </div>
-                        <div class="row mb-3"><div class="col-6"><label class="form-label mb-1">Ancho Banda</label><input type="text" class="form-control form-control-sm" id="ancho_banda" required></div><div class="col-6"><label class="form-label mb-1">Proveedor</label><input type="text" class="form-control form-control-sm" id="proveedor" required></div></div>
-                        <div class="row mb-2"><div class="col-4"><label class="form-label mb-1">Moneda</label><select class="form-select form-select-sm" id="moneda"><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div class="col-8"><label class="form-label mb-1">Instalación</label><input type="number" step="0.01" class="form-control form-control-sm" id="instalacion" value="0" required></div></div>
-                        <div class="row mb-3"><div class="col-6"><label class="form-label mb-1 text-danger">Costo Mensual</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo" required></div><div class="col-6"><label class="form-label mb-1 text-primary">MANTENIMIENTO (ARS)</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo_mantenimiento" value="0" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta SIN IVA</label><input type="number" step="0.01" class="form-control form-control-sm" id="venta_sin_iva" required></div><div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta CON IVA</label><input type="number" step="0.01" class="form-control form-control-sm bg-light" id="venta_con_iva" readonly></div></div>
+                        <div class="row mb-3"><div class="col-6"><label class="form-label mb-1">Ancho Banda</label><input type="text" class="form-control form-control-sm" id="ancho_banda" required oninput="autocompletarCostos()"></div><div class="col-6"><label class="form-label mb-1">Proveedor</label><input type="text" class="form-control form-control-sm" id="proveedor" required></div></div>
+                        <div class="row mb-2">
+                            <div class="col-12"><label class="form-label mb-1">Instalación (USD)</label><input type="number" step="0.01" class="form-control form-control-sm" id="instalacion" value="0" required></div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-4"><label class="form-label mb-1 text-danger">Costo Mensual</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo" required></div>
+                            <div class="col-4"><label class="form-label mb-1 text-primary">MANTENIMIENTO</label><input type="number" step="0.01" class="form-control form-control-sm" id="costo_mantenimiento" value="0" required oninput="document.getElementById('costo_mantenimiento_con_iva').value = (this.value * 1.21).toFixed(2)"></div>
+                            <div class="col-4"><label class="form-label mb-1 text-dark fw-bold">MANT. c/IVA (ARS)</label><input type="number" step="0.01" class="form-control form-control-sm bg-light text-dark fw-bold" id="costo_mantenimiento_con_iva" readonly></div>
+                            <div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta SIN IVA</label><input type="number" step="0.01" class="form-control form-control-sm" id="venta_sin_iva" required></div>
+                            <div class="col-6 mt-2"><label class="form-label mb-1 text-success">Venta CON IVA</label><input type="number" step="0.01" class="form-control form-control-sm bg-light" id="venta_con_iva" readonly></div>
+                        </div>
                         <div class="mb-3"><label class="form-label mb-1">Observaciones</label><textarea class="form-control form-control-sm" id="observaciones" rows="2"></textarea></div>
-                        <div class="mb-3"><label class="form-label mb-1">Solicitud de Alta (Opcional - PDF/JPG)</label><input type="file" class="form-control form-control-sm" id="archivo_adjunto" accept=".pdf, .jpg, .jpeg"></div>
-                        
+                        <div class="mb-3">
+                            <label class="form-label mb-1">Solicitud de Alta (Hasta 10 archivos - PDF/JPG)</label>
+                            <input type="file" class="form-control form-control-sm" id="archivo_adjunto" accept=".pdf, .jpg, .jpeg" multiple onchange="if(this.files.length > 10) { alert('Máximo 10 archivos'); this.value = ''; }">
+                        </div>
                         <button type="submit" class="btn btn-primary w-100" id="btnGuardar">Guardar Enlace</button>
                         <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancelar" onclick="resetForm()">Cancelar</button>
                     </form>
@@ -66,13 +97,197 @@
         </div>
         <div class="col-xl-9 col-lg-8">
             <div class="card"><div class="card-header bg-dark text-white d-flex justify-content-between align-items-center"><h6 class="mb-0">Padrón de Enlaces</h6><div><a href="/reportes/pdf" class="btn btn-sm btn-outline-light me-2" target="_blank">📄 PDF</a><a href="/reportes/excel" class="btn btn-sm btn-outline-success text-white">📊 Excel</a></div></div>
-                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>ITEM</th><th>Ref</th><th>Organismo</th><th>Ubicación</th><th>Localidad</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
+                <div class="card-body p-0"><table class="table table-hover table-striped mb-0 text-center align-middle"><thead><tr><th>IT</th><th>Ref</th><th>Organismo</th><th>Ubicación</th><th>Localidad</th><th>Tipo</th><th>Ancho Banda</th><th>Venta c/IVA (USD)</th><th>Acción</th></tr></thead><tbody id="tablaEnlaces"></tbody></table></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- NUEVO MODAL: FILTROS Y EXPORTACIÓN -->
+<div class="modal fade" id="modalTarifas" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h6 class="modal-title">Tabla Central de Costos (Tarifario)</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-2 text-end bg-light border-bottom">
+                    <button class="btn btn-sm btn-primary" onclick="abrirFormTarifa()">+ Nueva Tarifa</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped mb-0 text-center align-middle">
+                        <thead><tr><th>Tipo Enlace</th><th>Venta s/IVA (Base) USD</th><th>Acción</th></tr></thead>
+                        <tbody id="tablaTarifasLista"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalFormTarifa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h6 class="modal-title" id="tituloFormTarifa">Nueva Tarifa</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2" style="font-size: 0.8rem;">Al guardar o editar, se actualizarán automáticamente todos los enlaces del sistema que coincidan con este Tipo.</div>
+                <form id="formTarifa">
+                    <input type="hidden" id="tarifa_id">
+                    <div class="row mb-2">
+                        <div class="col-12">
+                            <label class="form-label mb-1">Tipo de Enlace</label>
+                            <select class="form-select form-select-sm" id="tarifa_tipo" required>
+                                <option value="Fibra Optica dedicado">Fibra Optica dedicado (Precio por Mega)</option>
+                                <option value="Fibra Optica asimetrico">Fibra Optica asimetrico (Plano)</option>
+                                <option value="Radio Frecuencia">Radio Frecuencia (Plano)</option>
+                                <option value="LEO">LEO (Plano)</option>
+                                <option value="LEO Itinerante">LEO Itinerante (Plano)</option>
+                                <option value="LEO 1 TB">LEO 1 TB (Plano)</option>
+                                <option value="GEO">GEO (Plano)</option>
+                                <option value="L2L (transporte de datos)">L2L (transporte de datos) (Precio por Mega)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label mb-1 text-danger">Costo Prov. (USD)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" id="tarifa_costo" value="0" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1 text-primary">Mantenimiento (ARS)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" id="tarifa_mantenimiento" value="0" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-4">
+                            <label class="form-label mb-1 text-success">Venta SIN IVA</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" id="tarifa_venta_sin_iva" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-1 text-success">Venta CON IVA</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm bg-light" id="tarifa_venta_con_iva" readonly>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label mb-1">Instalación</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" id="tarifa_instalacion" value="0" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 btn-sm">Guardar y Aplicar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalFacturacion" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2 align-items-center">
+                <h6 class="modal-title mb-0">Reportes "A Facturar"</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="d-flex justify-content-end align-items-center mb-3">
+                    <input type="text" id="comentarioFacturacion" class="form-control form-control-sm me-2 shadow-sm border-secondary" placeholder="Escriba un comentario o nota para el reporte..." style="max-width: 400px;">
+                    <button class="btn btn-success fw-bold shadow-sm" onclick="generarFacturacion()" id="btnGenerarFact">➕ GENERAR NUEVO REPORTE</button>
+                </div>
+                <div class="table-responsive bg-white rounded shadow-sm border">
+                    <table class="table table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora de Generación</th>
+                                <th>Usuario Operador</th>
+                                <th>Comentario</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaFacturaciones"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalResumen" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2 align-items-center">
+                <h6 class="modal-title mb-0">Métricas y Resumen Ejecutivo</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label mb-1 fw-bold">Filtrar por Organismo</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="resumen_org" onkeyup="calcularMetricas()" placeholder="Todos...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label mb-1 fw-bold">Filtrar por Localidad</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="resumen_loc" onkeyup="calcularMetricas()" placeholder="Todas...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label mb-1 fw-bold">Filtrar por Proveedor</label>
+                        <input type="text" class="form-control form-control-sm border-secondary" id="resumen_prov" onkeyup="calcularMetricas()" placeholder="Todos...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label mb-1 fw-bold">Tipo de Enlace</label>
+                        <select class="form-select form-select-sm border-secondary" id="resumen_tipo" onchange="calcularMetricas()">
+                            <option value="">Todos los tipos</option>
+                            <option value="Fibra Optica dedicado">Fibra Optica dedicado</option>
+                            <option value="Fibra Optica asimetrico">Fibra Optica asimetrico</option>
+                            <option value="Radio Frecuencia">Radio Frecuencia</option>
+                            <option value="LEO">LEO</option>
+                            <option value="LEO Itinerante">LEO Itinerante</option>
+                            <option value="LEO 1 TB">LEO 1 TB</option>
+                            <option value="GEO">GEO</option>
+                            <option value="L2L (transporte de datos)">L2L (transporte de datos)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row text-center mt-2">
+                    <div class="col-md-3 mb-2">
+                        <div class="card bg-primary text-white shadow" style="border-radius: 15px;">
+                            <div class="card-body py-4">
+                                <h6 class="card-title text-uppercase mb-2 fw-light" style="letter-spacing: 1px;">Total Enlaces</h6>
+                                <h2 class="fw-bold mb-0 metric-value" id="resumen_count">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <div class="card bg-info text-white shadow" style="border-radius: 15px;">
+                            <div class="card-body py-4">
+                                <h6 class="card-title text-uppercase mb-2 fw-light" style="letter-spacing: 1px;">Ancho de Banda</h6>
+                                <h2 class="fw-bold mb-0 metric-value" id="resumen_bw">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <div class="card bg-success text-white shadow" style="border-radius: 15px;">
+                            <div class="card-body py-4">
+                                <h6 class="card-title text-uppercase mb-2 fw-light" style="letter-spacing: 1px;">Venta c/IVA</h6>
+                                <h4 class="fw-bold mb-0 metric-value" id="resumen_fact">0.00</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <div class="card bg-secondary text-white shadow" style="border-radius: 15px;">
+                            <div class="card-body py-4">
+                                <h6 class="card-title text-uppercase mb-2 fw-light" style="letter-spacing: 1px;">Mant. c/IVA</h6>
+                                <h4 class="fw-bold mb-0 metric-value" id="resumen_mant">0.00</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalFiltros" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -98,12 +313,14 @@
                     <table class="table table-hover table-striped mb-0 text-center align-middle">
                         <thead>
                             <tr>
-                                <th>ITEM</th>
+                                <th>IT</th>
                                 <th>Ref</th>
                                 <th>Organismo</th>
                                 <th>Ubicación</th>
                                 <th>Localidad</th>
                                 <th>Tipo</th>
+                                <th>Ancho Banda</th>
+                                <th>Venta c/IVA (USD)</th>
                             </tr>
                         </thead>
                         <tbody id="tablaEnlacesFiltrados"></tbody>
@@ -114,7 +331,6 @@
     </div>
 </div>
 
-<!-- MODALES PARA USUARIOS -->
 <div class="modal fade" id="modalUsuarios" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -160,7 +376,6 @@
     </div>
 </div>
 
-<!-- OTROS MODALES -->
 <div class="modal fade" id="modalObservaciones" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -183,40 +398,258 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let listadoEnlaces = [];
+    let listadoTarifas = [];
 
-    function toggleSatelitales() { const v = document.getElementById('tipo').value; document.getElementById('campos_satelitales').classList.toggle('d-none', !['LEO','LEO Itinerante','GEO'].includes(v)); }
+    function comprobarSesion(r) {
+        if (r.status === 401) { window.location.href = '/'; return false; }
+        return true;
+    }
+
+    function toggleSatelitales() { 
+        const v = document.getElementById('tipo').value; 
+        document.getElementById('campos_satelitales').classList.toggle('d-none', !['LEO','LEO Itinerante','LEO 1 TB','GEO'].includes(v)); 
+    }
+
     async function cargarEnlaces() {
-        const r = await fetch('/enlaces/'); const d = await r.json();
-        listadoEnlaces = d; 
-        document.getElementById('tablaEnlaces').innerHTML = d.map((e, index) => `<tr><td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;" title="Ver observaciones">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td><button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button><button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button><button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button><button class="btn btn-sm btn-outline-${e.estado=='ACTIVO'?'danger':'success'}" onclick="st(${e.id},'${e.estado=='ACTIVO'?'INACTIVO':'ACTIVO'}')">${e.estado=='ACTIVO'?'Baja':'Activar'}</button></td></tr>`).join('');
+        try {
+            const r = await fetch('/enlaces/'); 
+            if (!comprobarSesion(r)) return;
+            if (!r.ok) throw new Error("Error en servidor");
+            
+            const d = await r.json();
+            listadoEnlaces = d; 
+            
+            let filas = '';
+            d.forEach((e, index) => {
+                let btnEstado = e.estado === 'ACTIVO' ? 
+                    `<button class="btn btn-sm btn-outline-danger me-1" onclick="st(${e.id},'INACTIVO')">Baja</button>` : 
+                    `<button class="btn btn-sm btn-outline-success me-1" onclick="st(${e.id},'ACTIVO')">Activar</button>`;
+                
+                filas += `<tr>
+                    <td>${index + 1}</td>
+                    <td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;" title="Ver observaciones">${e.referencia}</a></td>
+                    <td>${e.organismo}</td>
+                    <td>${e.ubicacion || ''}</td>
+                    <td>${e.localidad}</td>
+                    <td>${e.tipo_enlace}</td>
+                    <td>${e.ancho_banda}</td>
+                    <td>USD ${e.precio_venta_con_iva.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info me-1" onclick="consultar(${e.id})">Consultar</button>
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick="editar(${e.id})">Editar</button>
+                        <button class="btn btn-sm btn-outline-danger me-1" onclick="eliminar(${e.id})">Eliminar</button>
+                        ${btnEstado}
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('tablaEnlaces').innerHTML = filas;
+        } catch(error) { console.error(error); }
     }
     
-    // LOGICA NUEVA PARA EL POPUP DE FILTROS Y EXPORTACION
+    async function abrirFacturacion() {
+        await cargarFacturaciones();
+        new bootstrap.Modal(document.getElementById('modalFacturacion')).show();
+    }
+
+    async function cargarFacturaciones() {
+        try {
+            const r = await fetch('/facturaciones/');
+            if (!comprobarSesion(r)) return;
+            const d = await r.json();
+            let filas = '';
+            d.forEach(f => {
+                const fechaObj = new Date(f.fecha_generacion);
+                const fecha = fechaObj.toLocaleDateString('es-AR') + ' ' + fechaObj.toLocaleTimeString('es-AR');
+                filas += `<tr>
+                    <td>${fecha}</td>
+                    <td>${f.usuario}</td>
+                    <td>${f.comentario || ''}</td>
+                    <td>
+                        <a href="/adjuntos/${f.archivo}" target="_blank" class="btn btn-sm btn-outline-primary fw-bold me-1">📥 Descargar PDF</a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarFacturacion(${f.id})">✖ Borrar</button>
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('tablaFacturaciones').innerHTML = filas;
+        } catch (error) { console.error(error); }
+    }
+
+    async function generarFacturacion() {
+        if(!confirm('¿Estás seguro que deseas generar y guardar un nuevo reporte PDF de facturación?')) return;
+        
+        const btn = document.getElementById('btnGenerarFact');
+        const comentario = document.getElementById('comentarioFacturacion').value;
+        btn.disabled = true; btn.innerText = "Generando PDF, aguarde...";
+
+        try {
+            const r = await fetch('/facturaciones/generar', { 
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({comentario: comentario})
+            });
+            if (!comprobarSesion(r)) return;
+            if(r.ok) {
+                alert("Reporte guardado exitosamente en el historial.");
+                document.getElementById('comentarioFacturacion').value = '';
+                await cargarFacturaciones();
+            } else { alert("Error generando el reporte en el servidor."); }
+        } catch (error) { alert("Error de conexión al generar."); } 
+        finally { btn.disabled = false; btn.innerText = "➕ GENERAR NUEVO REPORTE"; }
+    }
+    
+    async function eliminarFacturacion(id) {
+        if(confirm('¿Estás seguro que deseas eliminar este reporte de facturación de forma permanente?')) {
+            const r = await fetch(`/facturaciones/${id}`, {method: 'DELETE'});
+            if (!comprobarSesion(r)) return;
+            if(r.ok) await cargarFacturaciones();
+            else alert("Error al eliminar el reporte.");
+        }
+    }
+
+    function abrirResumen() {
+        document.getElementById('resumen_org').value = '';
+        document.getElementById('resumen_loc').value = '';
+        document.getElementById('resumen_prov').value = '';
+        document.getElementById('resumen_tipo').value = '';
+        calcularMetricas();
+        new bootstrap.Modal(document.getElementById('modalResumen')).show();
+    }
+
+    function calcularMetricas() {
+        const org = document.getElementById('resumen_org').value.toLowerCase();
+        const loc = document.getElementById('resumen_loc').value.toLowerCase();
+        const prov = document.getElementById('resumen_prov').value.toLowerCase();
+        const tipo = document.getElementById('resumen_tipo').value;
+
+        let filtrados = listadoEnlaces.filter(e => {
+            const matchOrg = (e.organismo || '').toLowerCase().includes(org);
+            const matchLoc = (e.localidad || '').toLowerCase().includes(loc);
+            const matchProv = (e.proveedor || '').toLowerCase().includes(prov);
+            const matchTipo = tipo === '' || e.tipo_enlace === tipo;
+            return matchOrg && matchLoc && matchProv && matchTipo;
+        });
+
+        let sumBw = 0, sumFactUSD = 0, sumMantARS = 0;
+        filtrados.forEach(e => {
+            sumFactUSD += parseFloat(e.precio_venta_con_iva) || 0;
+            sumMantARS += parseFloat(e.costo_mantenimiento_con_iva) || 0;
+            const match = (e.ancho_banda || '').match(/[\d\.]+/);
+            if (match) sumBw += parseFloat(match[0]);
+        });
+
+        document.getElementById('resumen_count').innerText = filtrados.length;
+        document.getElementById('resumen_bw').innerText = sumBw.toLocaleString('es-AR', {maximumFractionDigits: 2});
+        document.getElementById('resumen_fact').innerHTML = `USD ${sumFactUSD.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+        document.getElementById('resumen_mant').innerHTML = `ARS ${sumMantARS.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+    }
+
+    async function cargarCachTarifas() {
+        try {
+            const r = await fetch('/tarifas/');
+            if(r.ok) listadoTarifas = await r.json();
+        } catch (error) {}
+    }
+
+    async function gestionarTarifas() {
+        await cargarCachTarifas();
+        let filas = '';
+        listadoTarifas.forEach(t => {
+            let labelTipo = t.tipo_enlace;
+            if(labelTipo === "Fibra Optica dedicado" || labelTipo === "L2L (transporte de datos)") labelTipo += " (Por Mega)";
+            filas += `<tr>
+                <td>${labelTipo}</td><td>${t.precio_venta_sin_iva}</td>
+                <td><button class="btn btn-sm btn-outline-warning" onclick="editarTarifa(${t.id})">Editar</button> <button class="btn btn-sm btn-outline-danger" onclick="eliminarTarifa(${t.id})">Eliminar</button></td>
+            </tr>`;
+        });
+        document.getElementById('tablaTarifasLista').innerHTML = filas;
+        new bootstrap.Modal(document.getElementById('modalTarifas')).show();
+    }
+
+    function abrirFormTarifa() {
+        document.getElementById('formTarifa').reset(); document.getElementById('tarifa_id').value = '';
+        const opt = document.querySelector('#tarifa_tipo option[value="Fibra Optica dedicado"]'); if (opt) opt.selected = true;
+        document.getElementById('tituloFormTarifa').innerText = 'Nueva Tarifa';
+        new bootstrap.Modal(document.getElementById('modalFormTarifa')).show();
+    }
+
+    function editarTarifa(id) {
+        const t = listadoTarifas.find(x => x.id === id);
+        if(t) {
+            document.getElementById('tarifa_id').value = t.id; document.getElementById('tarifa_tipo').value = t.tipo_enlace;
+            document.getElementById('tarifa_costo').value = t.precio_costo;
+            document.getElementById('tarifa_mantenimiento').value = t.costo_mantenimiento; document.getElementById('tarifa_venta_sin_iva').value = t.precio_venta_sin_iva;
+            document.getElementById('tarifa_venta_con_iva').value = t.precio_venta_con_iva; document.getElementById('tarifa_instalacion').value = t.costo_instalacion;
+            document.getElementById('tituloFormTarifa').innerText = 'Editar Tarifa';
+            new bootstrap.Modal(document.getElementById('modalFormTarifa')).show();
+        }
+    }
+
+    async function eliminarTarifa(id) {
+        if(confirm('¿Eliminar esta tarifa? No afectará a los enlaces ya cargados.')) {
+            const r = await fetch(`/tarifas/${id}`, {method: 'DELETE'});
+            if (!comprobarSesion(r)) return;
+            gestionarTarifas();
+        }
+    }
+
+    document.getElementById('tarifa_venta_sin_iva').oninput = e => document.getElementById('tarifa_venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
+
+    document.getElementById('formTarifa').onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('tarifa_id').value;
+        const p = {
+            tipo_enlace: document.getElementById('tarifa_tipo').value,
+            precio_costo: parseFloat(document.getElementById('tarifa_costo').value), costo_mantenimiento: parseFloat(document.getElementById('tarifa_mantenimiento').value),
+            precio_venta_sin_iva: parseFloat(document.getElementById('tarifa_venta_sin_iva').value), precio_venta_con_iva: parseFloat(document.getElementById('tarifa_venta_con_iva').value),
+            costo_instalacion: parseFloat(document.getElementById('tarifa_instalacion').value)
+        };
+        const r = await fetch(id ? `/tarifas/${id}` : '/tarifas/', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+        if (!comprobarSesion(r)) return;
+        if(r.ok) {
+            const m = bootstrap.Modal.getInstance(document.getElementById('modalFormTarifa')); if(m) m.hide();
+            await gestionarTarifas(); cargarEnlaces(); alert("Tarifa guardada y enlaces actualizados exitosamente.");
+        } else { alert(`Error: ${(await r.json()).detail}`); }
+    };
+
+    function autocompletarCostos() {
+        const tipo = document.getElementById('tipo').value;
+        const ancho_str = document.getElementById('ancho_banda').value.trim();
+        const tarifa = listadoTarifas.find(t => t.tipo_enlace === tipo);
+        if (tarifa) {
+            let multiplier = 1.0;
+            if (tipo === "Fibra Optica dedicado" || tipo === "L2L (transporte de datos)") {
+                const match = ancho_str.match(/[\d\.]+/);
+                if (match) multiplier = parseFloat(match[0]); else if (ancho_str !== '') multiplier = 1.0; 
+            }
+            document.getElementById('costo').value = tarifa.precio_costo;
+            document.getElementById('costo_mantenimiento').value = tarifa.costo_mantenimiento; document.getElementById('instalacion').value = tarifa.costo_instalacion;
+            document.getElementById('costo_mantenimiento_con_iva').value = (tarifa.costo_mantenimiento * 1.21).toFixed(2);
+            const vS = tarifa.precio_venta_sin_iva * multiplier;
+            document.getElementById('venta_sin_iva').value = vS.toFixed(2); document.getElementById('venta_con_iva').value = (vS * 1.21).toFixed(2);
+        }
+    }
+
     function abrirFiltros() {
-        document.getElementById('filtro_organismo').value = '';
-        document.getElementById('filtro_localidad').value = '';
-        aplicarFiltros();
-        new bootstrap.Modal(document.getElementById('modalFiltros')).show();
+        document.getElementById('filtro_organismo').value = ''; document.getElementById('filtro_localidad').value = '';
+        aplicarFiltros(); new bootstrap.Modal(document.getElementById('modalFiltros')).show();
     }
 
     function aplicarFiltros() {
         const org = document.getElementById('filtro_organismo').value.toLowerCase();
         const loc = document.getElementById('filtro_localidad').value.toLowerCase();
-        
-        const filtrados = listadoEnlaces.filter(e => 
-            (e.organismo || '').toLowerCase().includes(org) && 
-            (e.localidad || '').toLowerCase().includes(loc)
-        );
-
-        document.getElementById('tablaEnlacesFiltrados').innerHTML = filtrados.map((e, index) => `<tr><td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;">${e.referencia}</a></td><td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td></tr>`).join('');
+        const filtrados = listadoEnlaces.filter(e => (e.organismo || '').toLowerCase().includes(org) && (e.localidad || '').toLowerCase().includes(loc));
+        let filas = '';
+        filtrados.forEach((e, index) => {
+            filas += `<tr>
+                <td>${index + 1}</td><td><a href="#" class="link-referencia" onclick="mostrarObservaciones(${e.id}); return false;">${e.referencia}</a></td>
+                <td>${e.organismo}</td><td>${e.ubicacion || ''}</td><td>${e.localidad}</td><td>${e.tipo_enlace}</td><td>${e.ancho_banda}</td><td>USD ${e.precio_venta_con_iva.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            </tr>`;
+        });
+        document.getElementById('tablaEnlacesFiltrados').innerHTML = filas;
     }
 
     function exportarExcelFiltrado() {
-        const org = document.getElementById('filtro_organismo').value;
-        const loc = document.getElementById('filtro_localidad').value;
+        const org = document.getElementById('filtro_organismo').value; const loc = document.getElementById('filtro_localidad').value;
         let url = '/reportes/excel?';
-        if (org) url += `organismo=${encodeURIComponent(org)}&`;
-        if (loc) url += `localidad=${encodeURIComponent(loc)}&`;
+        if (org) url += `organismo=${encodeURIComponent(org)}&`; if (loc) url += `localidad=${encodeURIComponent(loc)}&`;
         window.open(url, '_blank');
     }
 
@@ -225,144 +658,145 @@
         if (e) {
             document.getElementById('tituloObservaciones').innerText = `Observaciones - Ref: ${e.referencia}`;
             document.getElementById('textoObservaciones').innerText = e.observaciones ? e.observaciones : 'No hay observaciones cargadas para este enlace.';
-            
             const contenedorAdjunto = document.getElementById('contenedorAdjunto');
             if (e.archivo_adjunto) {
-                contenedorAdjunto.innerHTML = `<hr><a href="/adjuntos/${e.archivo_adjunto}" target="_blank" class="btn btn-sm btn-outline-primary">📄 Ver Solicitud de Alta Adjunta</a>`;
-            } else {
-                contenedorAdjunto.innerHTML = '';
-            }
-
-            new bootstrap.Modal(document.getElementById('modalObservaciones')).show();
+                const adjuntos = e.archivo_adjunto.split(',');
+                let htmlBotones = '<hr><h6 class="text-secondary mb-2" style="font-size: 0.8rem;">Archivos Adjuntos</h6><div class="d-flex flex-wrap justify-content-center gap-2">';
+                adjuntos.forEach((adj, i) => {
+                    if (adj) {
+                        let nombreMostrar = adj; const partes = adj.split('_');
+                        if (partes.length >= 3 && partes[0].startsWith('id')) nombreMostrar = partes.slice(2).join('_');
+                        htmlBotones += `<div class="btn-group shadow-sm"><a href="/adjuntos/${adj}" target="_blank" class="btn btn-sm btn-outline-primary" title="${adj}">📄 ${nombreMostrar}</a><button type="button" class="btn btn-sm btn-outline-danger" onclick="borrarAdjunto(${e.id}, '${adj}')" title="Borrar adjunto">✖</button></div>`;
+                    }
+                });
+                htmlBotones += '</div>'; contenedorAdjunto.innerHTML = htmlBotones;
+            } else contenedorAdjunto.innerHTML = '';
+            
+            const modalEl = document.getElementById('modalObservaciones');
+            let bsModal = bootstrap.Modal.getInstance(modalEl); if (!bsModal) bsModal = new bootstrap.Modal(modalEl);
+            bsModal.show();
         }
     }
 
-    async function eliminar(id) { if(confirm('¿Eliminar?')) { await fetch(`/enlaces/${id}/eliminar`, {method:'PATCH'}); cargarEnlaces(); } }
+    async function borrarAdjunto(id, filename) {
+        if(confirm('¿Seguro que deseas eliminar este archivo adjunto?')) {
+            const r = await fetch(`/enlaces/${id}/adjunto/${encodeURIComponent(filename)}`, {method: 'DELETE'});
+            if (!comprobarSesion(r)) return;
+            if(r.ok) { await cargarEnlaces(); mostrarObservaciones(id); } else alert("Error al intentar eliminar el archivo.");
+        }
+    }
+
+    async function eliminar(id) { 
+        if(confirm('¿Eliminar?')) { const r = await fetch(`/enlaces/${id}/eliminar`, {method:'PATCH'}); if (!comprobarSesion(r)) return; cargarEnlaces(); } 
+    }
+
     async function consultar(id) {
-        const r = await fetch(`/enlaces/${id}`); const e = await r.json();
-        document.getElementById('val_cupo').innerText = e.cupo_transferencia || 'N/A';
-        document.getElementById('val_gps').innerText = e.coordenadas_gps || 'N/A';
-        document.getElementById('val_antena').innerText = e.sn_antena || 'N/A';
-        document.getElementById('val_modem').innerText = e.sn_modem || 'N/A';
-        document.getElementById('val_te').innerText = e.nro_te || 'N/A';
-        document.getElementById('val_item').innerText = e.nro_item || 'N/A';
+        const r = await fetch(`/enlaces/${id}`); if (!comprobarSesion(r)) return;
+        const e = await r.json();
+        document.getElementById('val_cupo').innerText = e.cupo_transferencia || 'N/A'; document.getElementById('val_gps').innerText = e.coordenadas_gps || 'N/A';
+        document.getElementById('val_antena').innerText = e.sn_antena || 'N/A'; document.getElementById('val_modem').innerText = e.sn_modem || 'N/A';
+        document.getElementById('val_te').innerText = e.nro_te || 'N/A'; document.getElementById('val_item').innerText = e.nro_item || 'N/A';
         new bootstrap.Modal(document.getElementById('modalConsulta')).show();
     }
+
     async function editar(id) {
-        const r = await fetch(`/enlaces/${id}`); const e = await r.json();
-        document.getElementById('edit_id').value = e.id;
-        document.getElementById('referencia').value = e.referencia;
-        document.getElementById('fecha_alta').value = e.fecha_alta;
-        document.getElementById('organismo').value = e.organismo;
-        document.getElementById('ubicacion').value = e.ubicacion || '';
-        document.getElementById('observaciones').value = e.observaciones || ''; 
-        document.getElementById('localidad').value = e.localidad;
-        document.getElementById('tipo').value = e.tipo_enlace;
+        const r = await fetch(`/enlaces/${id}`); if (!comprobarSesion(r)) return;
+        const e = await r.json();
+        document.getElementById('edit_id').value = e.id; document.getElementById('referencia').value = e.referencia;
+        document.getElementById('fecha_alta').value = e.fecha_alta; document.getElementById('organismo').value = e.organismo;
+        document.getElementById('ubicacion').value = e.ubicacion || ''; document.getElementById('observaciones').value = e.observaciones || ''; 
+        document.getElementById('localidad').value = e.localidad; document.getElementById('tipo').value = e.tipo_enlace;
         toggleSatelitales();
-        document.getElementById('cupo_transferencia').value = e.cupo_transferencia || '';
-        document.getElementById('coordenadas_gps').value = e.coordenadas_gps || '';
-        document.getElementById('sn_antena').value = e.sn_antena || '';
-        document.getElementById('sn_modem').value = e.sn_modem || '';
-        document.getElementById('nro_te').value = e.nro_te || '';
-        document.getElementById('nro_item').value = e.nro_item || '';
-        document.getElementById('ancho_banda').value = e.ancho_banda;
-        document.getElementById('proveedor').value = e.proveedor;
-        document.getElementById('costo').value = e.precio_costo;
-        document.getElementById('costo_mantenimiento').value = e.costo_mantenimiento;
+        document.getElementById('cupo_transferencia').value = e.cupo_transferencia || ''; document.getElementById('coordenadas_gps').value = e.coordenadas_gps || '';
+        document.getElementById('sn_antena').value = e.sn_antena || ''; document.getElementById('sn_modem').value = e.sn_modem || '';
+        document.getElementById('nro_te').value = e.nro_te || ''; document.getElementById('nro_item').value = e.nro_item || '';
+        document.getElementById('ancho_banda').value = e.ancho_banda; document.getElementById('proveedor').value = e.proveedor;
+        document.getElementById('costo').value = e.precio_costo; document.getElementById('costo_mantenimiento').value = e.costo_mantenimiento;
+        document.getElementById('costo_mantenimiento_con_iva').value = e.costo_mantenimiento_con_iva !== undefined ? e.costo_mantenimiento_con_iva : (e.costo_mantenimiento * 1.21).toFixed(2);
         document.getElementById('venta_sin_iva').value = e.precio_venta_sin_iva;
-        document.getElementById('instalacion').value = e.costo_instalacion;
+        document.getElementById('instalacion').value = e.costo_instalacion_original !== undefined ? e.costo_instalacion_original : e.costo_instalacion;
         document.getElementById('venta_con_iva').value = (e.precio_venta_sin_iva * 1.21).toFixed(2);
-        document.getElementById('formTitle').innerText = "Editar Enlace";
-        document.getElementById('btnGuardar').innerText = "Actualizar";
+        
+        document.getElementById('formTitle').innerText = "Editar Enlace"; document.getElementById('btnGuardar').innerText = "Actualizar";
         document.getElementById('btnCancelar').classList.remove('d-none');
     }
-    function resetForm() { document.getElementById('formAltaEnlace').reset(); document.getElementById('edit_id').value = ''; document.getElementById('formTitle').innerText = "Alta de Nuevo Enlace"; document.getElementById('btnGuardar').innerText = "Guardar Enlace"; document.getElementById('btnCancelar').classList.add('d-none'); toggleSatelitales(); }
-    async function st(id, s) { await fetch(`/enlaces/${id}/estado?estado=${s}`, {method:'PATCH'}); cargarEnlaces(); }
-    async function verLogs() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaLogs').innerHTML = d.map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalLogs')).show(); }
-    async function verEliminados() { const r = await fetch('/logs/'); const d = await r.json(); document.getElementById('tablaEliminados').innerHTML = d.filter(l => l.accion === 'ELIMINAR').map(l => `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`).join(''); new bootstrap.Modal(document.getElementById('modalEliminados')).show(); }
+
+    function resetForm() { 
+        document.getElementById('formAltaEnlace').reset(); document.getElementById('edit_id').value = ''; 
+        document.getElementById('costo_mantenimiento_con_iva').value = '';
+        document.getElementById('formTitle').innerText = "Alta de Nuevo Enlace"; document.getElementById('btnGuardar').innerText = "Guardar Enlace"; 
+        document.getElementById('btnCancelar').classList.add('d-none'); toggleSatelitales(); 
+    }
+
+    async function st(id, s) { const r = await fetch(`/enlaces/${id}/estado?estado=${s}`, {method:'PATCH'}); if (!comprobarSesion(r)) return; cargarEnlaces(); }
+
+    async function verLogs() { 
+        const r = await fetch('/logs/'); if (!comprobarSesion(r)) return; const d = await r.json(); 
+        let filas = ''; d.forEach(l => { filas += `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`; });
+        document.getElementById('tablaLogs').innerHTML = filas; new bootstrap.Modal(document.getElementById('modalLogs')).show(); 
+    }
+
+    async function verEliminados() { 
+        const r = await fetch('/logs/'); if (!comprobarSesion(r)) return; const d = await r.json(); 
+        let filas = ''; d.filter(l => l.accion === 'ELIMINAR').forEach(l => { filas += `<tr><td>${new Date(l.fecha_hora).toLocaleString()}</td><td>${l.usuario}</td><td>${l.accion}</td><td>${l.detalle}</td></tr>`; });
+        document.getElementById('tablaEliminados').innerHTML = filas; new bootstrap.Modal(document.getElementById('modalEliminados')).show(); 
+    }
+
     document.getElementById('venta_sin_iva').oninput = e => document.getElementById('venta_con_iva').value = (e.target.value * 1.21).toFixed(2);
     
     document.getElementById('formAltaEnlace').onsubmit = async (e) => {
         e.preventDefault(); const id = document.getElementById('edit_id').value;
-        const p = {referencia:document.getElementById('referencia').value, organismo:document.getElementById('organismo').value, ubicacion:document.getElementById('ubicacion').value, observaciones:document.getElementById('observaciones').value, localidad:document.getElementById('localidad').value, tipo_enlace:document.getElementById('tipo').value, ancho_banda:document.getElementById('ancho_banda').value, moneda:document.getElementById('moneda').value, precio_costo:parseFloat(document.getElementById('costo').value), costo_mantenimiento:parseFloat(document.getElementById('costo_mantenimiento').value), precio_venta_sin_iva:parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva:parseFloat(document.getElementById('venta_con_iva').value), costo_instalacion:parseFloat(document.getElementById('instalacion').value), fecha_alta:document.getElementById('fecha_alta').value, proveedor:document.getElementById('proveedor').value, cupo_transferencia:document.getElementById('cupo_transferencia').value, coordenadas_gps:document.getElementById('coordenadas_gps').value, sn_antena:document.getElementById('sn_antena').value, sn_modem:document.getElementById('sn_modem').value, nro_te:document.getElementById('nro_te').value, nro_item:document.getElementById('nro_item').value};
-        
-        const r = await fetch(id ? `/enlaces/${id}` : '/enlaces/', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)});
+        const p = {
+            referencia: document.getElementById('referencia').value, organismo: document.getElementById('organismo').value, 
+            ubicacion: document.getElementById('ubicacion').value, observaciones: document.getElementById('observaciones').value, 
+            localidad: document.getElementById('localidad').value, tipo_enlace: document.getElementById('tipo').value, 
+            ancho_banda: document.getElementById('ancho_banda').value, 
+            precio_costo: parseFloat(document.getElementById('costo').value), costo_mantenimiento: parseFloat(document.getElementById('costo_mantenimiento').value), 
+            precio_venta_sin_iva: parseFloat(document.getElementById('venta_sin_iva').value), precio_venta_con_iva: parseFloat(document.getElementById('venta_con_iva').value), 
+            costo_instalacion: parseFloat(document.getElementById('instalacion').value), fecha_alta: document.getElementById('fecha_alta').value, 
+            proveedor: document.getElementById('proveedor').value, cupo_transferencia: document.getElementById('cupo_transferencia').value, 
+            coordenadas_gps: document.getElementById('coordenadas_gps').value, sn_antena: document.getElementById('sn_antena').value, 
+            sn_modem: document.getElementById('sn_modem').value, nro_te: document.getElementById('nro_te').value, nro_item: document.getElementById('nro_item').value
+        };
+        const r = await fetch(id ? `/enlaces/${id}` : '/enlaces/', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(p) });
+        if (!comprobarSesion(r)) return;
         if (r.ok) { 
             const data = await r.json();
-            const targetId = data.id;
-            
             const fileInput = document.getElementById('archivo_adjunto');
             if (fileInput.files.length > 0) {
                 const formData = new FormData();
-                formData.append("file", fileInput.files[0]);
-                await fetch(`/enlaces/${targetId}/adjunto`, { method: 'POST', body: formData });
+                for (let i = 0; i < fileInput.files.length; i++) formData.append("files", fileInput.files[i]);
+                comprobarSesion(await fetch(`/enlaces/${data.id}/adjunto`, { method: 'POST', body: formData }));
             }
-
-            alert("Operación exitosa"); 
-            resetForm(); 
-            cargarEnlaces(); 
+            alert("Operación exitosa"); resetForm(); cargarEnlaces(); 
         }
     };
     
-    // JS - GESTION DE USUARIOS
     async function gestionarUsuarios() {
-        const r = await fetch('/usuarios/');
-        if(r.ok) {
-            const d = await r.json();
-            document.getElementById('tablaUsuariosLista').innerHTML = d.map(u => `
-                <tr>
-                    <td>${u.id}</td>
-                    <td>${u.username}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-warning" onclick="editarUsuario(${u.id}, '${u.username}')">Editar</button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${u.id})">Eliminar</button>
-                    </td>
-                </tr>
-            `).join('');
-            new bootstrap.Modal(document.getElementById('modalUsuarios')).show();
-        } else {
-            alert("No autorizado para gestionar usuarios.");
-        }
+        const r = await fetch('/usuarios/'); if (!comprobarSesion(r)) return;
+        if (r.ok) {
+            const d = await r.json(); let filas = '';
+            d.forEach(u => { filas += `<tr><td>${u.id}</td><td>${u.username}</td><td><button class="btn btn-sm btn-outline-warning" onclick="editarUsuario(${u.id}, '${u.username}')">Editar</button> <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${u.id})">Eliminar</button></td></tr>`; });
+            document.getElementById('tablaUsuariosLista').innerHTML = filas; new bootstrap.Modal(document.getElementById('modalUsuarios')).show();
+        } else alert("No autorizado.");
     }
-    function abrirFormUsuario() {
-        document.getElementById('formUsuario').reset();
-        document.getElementById('usuario_id').value = '';
-        document.getElementById('tituloFormUsuario').innerText = 'Nuevo Usuario';
-        new bootstrap.Modal(document.getElementById('modalFormUsuario')).show();
-    }
-    function editarUsuario(id, username) {
-        document.getElementById('formUsuario').reset();
-        document.getElementById('usuario_id').value = id;
-        document.getElementById('nuevo_username').value = username;
-        document.getElementById('tituloFormUsuario').innerText = 'Editar Usuario';
-        new bootstrap.Modal(document.getElementById('modalFormUsuario')).show();
-    }
-    async function eliminarUsuario(id) {
-        if(confirm('¿Eliminar usuario del sistema?')) {
-            await fetch(`/usuarios/${id}`, {method: 'DELETE'});
-            gestionarUsuarios();
-        }
-    }
+
+    function abrirFormUsuario() { document.getElementById('formUsuario').reset(); document.getElementById('usuario_id').value = ''; document.getElementById('tituloFormUsuario').innerText = 'Nuevo Usuario'; new bootstrap.Modal(document.getElementById('modalFormUsuario')).show(); }
+    function editarUsuario(id, username) { document.getElementById('formUsuario').reset(); document.getElementById('usuario_id').value = id; document.getElementById('nuevo_username').value = username; document.getElementById('tituloFormUsuario').innerText = 'Editar Usuario'; new bootstrap.Modal(document.getElementById('modalFormUsuario')).show(); }
+    async function eliminarUsuario(id) { if (confirm('¿Eliminar usuario del sistema?')) { const r = await fetch(`/usuarios/${id}`, {method: 'DELETE'}); if (!comprobarSesion(r)) return; gestionarUsuarios(); } }
+
     document.getElementById('formUsuario').onsubmit = async (e) => {
         e.preventDefault();
         const id = document.getElementById('usuario_id').value;
-        const p = {
-            username: document.getElementById('nuevo_username').value,
-            password: document.getElementById('nuevo_password').value
-        };
-        await fetch(id ? `/usuarios/${id}` : '/usuarios/', {
-            method: id ? 'PUT' : 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(p)
-        });
-        const m = bootstrap.Modal.getInstance(document.getElementById('modalFormUsuario'));
-        if(m) m.hide();
+        const p = { username: document.getElementById('nuevo_username').value, password: document.getElementById('nuevo_password').value };
+        const r = await fetch(id ? `/usuarios/${id}` : '/usuarios/', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) });
+        if (!comprobarSesion(r)) return;
+        const m = bootstrap.Modal.getInstance(document.getElementById('modalFormUsuario')); if (m) m.hide();
         gestionarUsuarios();
     };
 
-    toggleSatelitales(); cargarEnlaces();
+    window.onload = () => { toggleSatelitales(); cargarCachTarifas(); cargarEnlaces(); };
 </script>
-
 <div style="position: fixed; bottom: 10px; right: 15px; font-weight: bold; font-size: 12px; color: #555; z-index: 9999;">Copyright By SiDnEy! 2026.</div>
 </body>
 </html>
